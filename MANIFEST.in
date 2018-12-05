@@ -1,0 +1,17 @@
+# Include the license and reame files
+include LICENSE.txt
+include README.rst
+include requirements.txt
+
+# Include the data files, examples and docs
+include t_student_table
+include unit_tests *.py
+# include unit_test/data/VNEV.txt
+
+# Exclude other directories and files
+exclude inst_files.txt
+recursive-exclude venv *
+recursive-exclude dist *
+recursive-exclude build *
+recursive-exclude * __pycache__
+recursive-exclude gnss_timeseries.egg.info *
