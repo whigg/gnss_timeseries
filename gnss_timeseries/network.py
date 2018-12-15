@@ -1,5 +1,6 @@
 import numpy as np
-from gnss_timeseries.gnss_timeseries import GnssTimeSeries, parse_time
+from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
+                                             parse_frequency)
 
 
 class NetworkTimeSeries:
@@ -11,7 +12,8 @@ class NetworkTimeSeries:
         :py:class:`gnss_timeseries.gnss_timeseries.GnssTimeSeriesSimple`
     """
 
-    def __init__(self, window_offset='10m', **kwargs_gnss_timeseries):
+    def __init__(self, length='1h', sampling_rate='1/s', window_offset='10m',
+                 **kwargs_other):
         self.n_sta = 0
         self._station_ts = []
         self._ref_coords = []
@@ -19,7 +21,14 @@ class NetworkTimeSeries:
         self._code2index = dict()
         self._names = []
         self.window_offset = parse_time(window_offset)
-        self._kwargs_gnss_ts = kwargs_gnss_timeseries
+        self.ts_length = parse_time(length)
+        self.s_rate = parse_frequency(sampling_rate)
+        self._kwargs_other = kwargs_other
+
+    def set_window_offset(self, window_offset):
+        self.window_offset = window_offset
+        for ts in self._station_ts:
+            ts.set_window_offset(window_offset)
 
     def station_timeseries(self, sta):
         """Buffer of the a station (GnssTimeSeriesSimple)
@@ -42,7 +51,11 @@ class NetworkTimeSeries:
         self._names.append(name)
         self._ref_coords.append(ref_coords)
         self._station_ts.append(GnssTimeSeries(
-            window_offset=self.window_offset, **self._kwargs_gnss_ts))
+            length=self.ts_length, sampling_rate=self.s_rate,
+            window_offset=self.window_offset, **self._kwargs_other))
+
+    def station_is_available(self, sta_code):
+        return sta_code in self._codes
 
     def get_coords(self, sta, get_time=True, as_dict=False):
         return self.station_timeseries(sta).get(
@@ -55,8 +68,9 @@ class NetworkTimeSeries:
         return self.station_timeseries(sta).get(
             layers=layers, get_time=get_time, as_dict=as_dict)
 
-    def add_point_to_station(self, sta, coords, t, **kwargs):
-        self.station_timeseries(sta).add_point(self, coords, t, **kwargs)
+    def add_point_to_station(self, sta, coords, std_coords, t, **kwargs):
+        self.station_timeseries(sta).add_point(
+            dict(coords=coords, std_coords=std_coords), t, **kwargs)
 
     def set_station_timeseries(self, sta, coords, std_coords, t,
                                check_sampling_rate=False):
@@ -141,3 +155,8 @@ class NetworkTimeSeries:
         return self._station_ts[self._code2index[code]].eval_offset(
             t_eval=t_eval, conf_outliers=conf_outliers,
             check_finite=check_finite)
+
+    def set_win_offset(self, win_offset):
+        win = parse_time(win_offset)
+        for ts in self._station_ts:
+            ts.win_offset = win

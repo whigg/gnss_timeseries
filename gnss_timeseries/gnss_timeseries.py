@@ -60,6 +60,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         # coseismic offset
         self.win_offset = parse_time(window_offset)
 
+    def set_window_offset(self, window_offset):
+        self.win_offset = parse_time(window_offset)
+
     def get_around(self, t, window, layers=None,
                    get_time=False, as_dict=False):
         """Gets one or more layers in a window around a point. By default, it
@@ -77,7 +80,7 @@ class GnssTimeSeries(LayeredTimeSeries):
                              get_time=get_time, as_dict=as_dict)
 
     def eval_offset(self, t_eval, conf_outliers=3, check_finite=True):
-        offset_dict = dict(t_offset=t_eval)
+        offset_dict = dict(t_offset=t_eval, half_win=self.win_offset)
         if np.isnan(t_eval):
             for k in range(3):
                 c = _coord_labels[k]
