@@ -12,23 +12,23 @@ class NetworkTimeSeries:
         :py:class:`gnss_timeseries.gnss_timeseries.GnssTimeSeriesSimple`
     """
 
-    def __init__(self, length='1h', sampling_rate='1/s', window_offset='10m',
-                 **kwargs_other):
+    def __init__(self, length='1h', sampling_rate='1/s',
+                 half_window_offset='10m', **kwargs_other):
         self.n_sta = 0
         self._station_ts = []
         self._ref_coords = []
         self._codes = []
         self._code2index = dict()
         self._names = []
-        self.window_offset = parse_time(window_offset)
+        self.half_window_offset = parse_time(half_window_offset)
         self.ts_length = parse_time(length)
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
 
-    def set_window_offset(self, window_offset):
-        self.window_offset = window_offset
+    def set_window_offset(self, half_window_offset):
+        self.half_window_offset = half_window_offset
         for ts in self._station_ts:
-            ts.set_window_offset(window_offset)
+            ts.set_window_offset(half_window_offset)
 
     def station_timeseries(self, sta):
         """Buffer of the a station (GnssTimeSeriesSimple)
@@ -52,7 +52,7 @@ class NetworkTimeSeries:
         self._ref_coords.append(ref_coords)
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
-            window_offset=self.window_offset, **self._kwargs_other))
+            half_window_offset=self.half_window_offset, **self._kwargs_other))
 
     def station_is_available(self, sta_code):
         return sta_code in self._codes

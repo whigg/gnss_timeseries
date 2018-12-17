@@ -40,7 +40,7 @@ class GnssTimeSeries(LayeredTimeSeries):
     intervals.
     """
 
-    def __init__(self, length='1h', sampling_rate='1/s', window_offset='10m',
+    def __init__(self, length='1h', sampling_rate='1/s', half_window_offset='10m',
                  **kwargs):
         """
 
@@ -58,10 +58,10 @@ class GnssTimeSeries(LayeredTimeSeries):
             layers_dict, 'coords')
         # window to compute the mean of a coordinate before and after a
         # coseismic offset
-        self.win_offset = parse_time(window_offset)
+        self.half_win_offset = parse_time(half_window_offset)
 
     def set_window_offset(self, window_offset):
-        self.win_offset = parse_time(window_offset)
+        self.half_win_offset = parse_time(window_offset)
 
     def get_around(self, t, window, layers=None,
                    get_time=False, as_dict=False):
@@ -80,7 +80,7 @@ class GnssTimeSeries(LayeredTimeSeries):
                              get_time=get_time, as_dict=as_dict)
 
     def eval_offset(self, t_eval, conf_outliers=3, check_finite=True):
-        offset_dict = dict(t_offset=t_eval, half_win=self.win_offset)
+        offset_dict = dict(t_offset=t_eval, half_win=self.half_win_offset)
         if np.isnan(t_eval):
             for k in range(3):
                 c = _coord_labels[k]
@@ -90,7 +90,7 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['post_mean_' + c] = np.nan
             return offset_dict
         all_fields, t = self.get_around(
-            t_eval, self.win_offset, layers=('coords', 'std_coords'),
+            t_eval, self.half_win_offset, layers=('coords', 'std_coords'),
             get_time=True)
         n = int(round(0.5*(all_fields['coords'][0].size-1)))
         enu = all_fields['coords']
