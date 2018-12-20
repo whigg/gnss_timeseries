@@ -12,7 +12,6 @@ _col_t_table = {'20%': 1, '10%': 2, '5%': 3, '2%': 4,
                 '1%': 5, '.5%': 6, '.2%': 7, '.1%': 8}
 path = join(realpath(dirname(dirname(__file__))),
             'gnss_timeseries', 't_student_table')
-print(path)
 _t_table = np.loadtxt(path, skiprows=6, unpack=True)
 _t_interp_tuple = tuple(log_interpolator(_t_table[0][:-1], _t_table[k][:-1])
                         for k in range(1, len(_t_table)))
