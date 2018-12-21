@@ -1,6 +1,6 @@
 import numpy as np
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
-                                             parse_frequency)
+                                             parse_frequency, coord_layers)
 
 
 class NetworkTimeSeries:
@@ -61,8 +61,24 @@ class NetworkTimeSeries:
         return self.station_timeseries(sta).get(
             get_time=get_time, as_dict=as_dict)
 
-    def get_coords_near(self, sta, t, as_dict=False):
-        return self.station_timeseries(sta).get_point(t, as_dict=as_dict)
+    def get_coords_near(self, sta, t, layers=None, as_dict=False):
+        return self.station_timeseries(sta).get_point(
+            t, layers=layers, as_dict=as_dict)
+
+    def get_interval(self, sta, t_begin, t_end, layers=None,
+                     as_dict=False, get_time=True):
+        return self.station_timeseries(sta).interval(
+            t_begin, t_end, layers=layers, as_dict=as_dict, get_time=get_time)
+
+    def get_last(self, sta, t_window, layers=None,
+                 as_dict=False, get_time=True):
+        return self.station_timeseries(sta).last(
+            t_window, layers=layers, as_dict=as_dict, get_time=get_time)
+
+    def get_first(self, sta, t_window, layers=None,
+                  as_dict=False, get_time=True):
+        return self.station_timeseries(sta).first(
+            t_window, layers=layers, as_dict=as_dict, get_time=get_time)
 
     def get_layers(self, sta, layers, get_time=True, as_dict=False):
         return self.station_timeseries(sta).get(

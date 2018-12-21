@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timezone
 from gnss_timeseries.stats import general_stats
-f_stencil = '/home/francisco/Escritorio/CSN/GNSS_datos/Pisagua_2014_UTM/{:s}.UTM'
+f_stencil = '/home/francisco/Escritorio/GNSS_datos/Pisagua_2014_UTM/{:s}.UTM'
 stations = ['MNMI', 'PB01', 'PB02', 'PB03', 'PB04',
             'PB05', 'PB06', 'PB08', 'PB11', 'PSGA']
 ts_origin = datetime(2014, 4, 1, 23, 46, 45, tzinfo=timezone.utc).timestamp()

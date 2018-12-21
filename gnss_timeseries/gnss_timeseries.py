@@ -9,6 +9,7 @@ _coords_layer_id = 'coords'
 _all_labels = ('E', 'N', 'U', 'stdE', 'stdN', 'stdU')
 _coord_labels = ('E', 'N', 'U')
 _std_coord_labels = ('stdE', 'stdN', 'stdU')
+coord_layers = layers=('coords', 'std_coords')
 
 
 def parse_time(t_str):
@@ -63,7 +64,7 @@ class GnssTimeSeries(LayeredTimeSeries):
     def set_window_offset(self, window_offset):
         self.half_win_offset = parse_time(window_offset)
 
-    def get_around(self, t, window, layers=None,
+    def get_around(self, t, window, layers=coord_layers,
                    get_time=False, as_dict=False):
         """Gets one or more layers in a window around a point. By default, it
         gets the ENU coordinates.
@@ -80,6 +81,14 @@ class GnssTimeSeries(LayeredTimeSeries):
                              get_time=get_time, as_dict=as_dict)
 
     def eval_offset(self, t_eval, conf_outliers=3, check_finite=True):
+        """Computes the Static Offset given a reference time
+
+        :param t_eval: reference unix time
+        :param conf_outliers: degree of confidence to remove outliers
+        :param check_finite: check for NaN or inf values
+        :return: dictionary with offsets, their standard deviations and
+            the means of the coordinates before and after the event.
+        """
         offset_dict = dict(t_offset=t_eval, half_win=self.half_win_offset)
         if np.isnan(t_eval):
             for k in range(3):
@@ -90,8 +99,7 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['post_mean_' + c] = np.nan
             return offset_dict
         all_fields, t = self.get_around(
-            t_eval, self.half_win_offset, layers=('coords', 'std_coords'),
-            get_time=True)
+            t_eval, self.half_win_offset, layers=coord_layers, get_time=True)
         n = int(round(0.5*(all_fields['coords'][0].size-1)))
         enu = all_fields['coords']
         std_enu = all_fields['coords']
@@ -110,8 +118,16 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['pre_mean' + c] = np.nan
                 offset_dict['post_mean' + c] = np.nan
                 continue
-            offset_dict['std' + c] = 0.5*(std_enu[k][:n][mask_ok_pre].mean() +
-                                          std_enu[k][n:][mask_ok_post].mean())
+            aux = std_enu[k][:n][mask_ok_pre]
+            aux *= aux
+            var1 = aux.sum()
+            var1 /= mask_ok_pre.sum()**2
+            aux = std_enu[k][n:][mask_ok_post]
+            aux *= aux
+            var2 = aux.sum()
+            var2 /= mask_ok_post.sum()**2
+
+            offset_dict['std' + c] = 0.5*np.sqrt(var1 + var2)
             offset_dict['pre_mean' + c] = mean_pre
             offset_dict['post_mean' + c] = mean_post
         return offset_dict
@@ -130,7 +146,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         """
         enu, t = self._get_aux(t_interval, get_time=True)
         if t_ref is None:
-            i_ref = int(0.5*t.size)
+            i_ref = int(0.25*t.size)
         else:
             i_ref = int(t.size*(t_ref-t[0])/(t[-1] - t[0]))
         # assumption: if "E" is NaN "N" and "U" also are.
