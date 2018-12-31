@@ -12,7 +12,6 @@ _col_t_table = {'20%': 1, '10%': 2, '5%': 3, '2%': 4,
                 '1%': 5, '.5%': 6, '.2%': 7, '.1%': 8}
 path = join(realpath(dirname(dirname(__file__))),
             'gnss_timeseries', 't_student_table')
-print(path)
 _t_table = np.loadtxt(path, skiprows=6, unpack=True)
 _t_interp_tuple = tuple(log_interpolator(_t_table[0][:-1], _t_table[k][:-1])
                         for k in range(1, len(_t_table)))
@@ -129,6 +128,7 @@ def eval_no_outliers(func, x, confidence=3, check_finite=False,
     :param confidence: confidence level: 1, 2, 3 or 4, which correspond to
         90%, 95%, 99% and 99.9% two-tailed confidence respectively (normal
         distribution). Default: 3 (99%)
+    :param check_finite: check for NaN or Inf values?
     :param get_mask_ok: return boolean mask of not-outliers?
     :return: evaluation of the function at the vector without outliers,
         (is-outlier mask).
