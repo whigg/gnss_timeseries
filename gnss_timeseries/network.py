@@ -1,6 +1,6 @@
 import numpy as np
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
-                                             parse_frequency, coord_layers)
+                                             parse_frequency)
 
 
 class NetworkTimeSeries:
@@ -24,6 +24,9 @@ class NetworkTimeSeries:
         self.ts_length = parse_time(length)
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
+
+    def half_win_offset(self):
+        return self.half_window_offset
 
     def set_window_offset(self, half_window_offset):
         self.half_window_offset = half_window_offset
@@ -52,7 +55,7 @@ class NetworkTimeSeries:
         self._ref_coords.append(ref_coords)
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
-            half_window_offset=self.half_window_offset, **self._kwargs_other))
+            half_window_offset=self.half_window_offset))
 
     def station_is_available(self, sta_code):
         return sta_code in self._codes

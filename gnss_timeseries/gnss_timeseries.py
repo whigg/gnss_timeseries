@@ -9,7 +9,7 @@ _coords_layer_id = 'coords'
 _all_labels = ('E', 'N', 'U', 'stdE', 'stdN', 'stdU')
 _coord_labels = ('E', 'N', 'U')
 _std_coord_labels = ('stdE', 'stdN', 'stdU')
-coord_layers = layers=('coords', 'std_coords')
+coord_layers = ('coords', 'std_coords')
 
 
 def parse_time(t_str):
@@ -41,8 +41,8 @@ class GnssTimeSeries(LayeredTimeSeries):
     intervals.
     """
 
-    def __init__(self, length='1h', sampling_rate='1/s', half_window_offset='10m',
-                 **kwargs):
+    def __init__(self, length='1h', sampling_rate='1/s',
+                 half_window_offset='10m'):
         """
 
         :param length: length of the timeseries. It can be a float/int value
@@ -99,7 +99,8 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['post_mean_' + c] = np.nan
             return offset_dict
         all_fields, t = self.get_around(
-            t_eval, self.half_win_offset, layers=coord_layers, get_time=True)
+            t_eval, self.half_win_offset, layers=('coords', 'std_coords'),
+            get_time=True)
         n = int(round(0.5*(all_fields['coords'][0].size-1)))
         enu = all_fields['coords']
         std_enu = all_fields['coords']
