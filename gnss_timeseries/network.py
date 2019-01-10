@@ -28,6 +28,13 @@ class NetworkTimeSeries:
     def half_win_offset(self):
         return self.half_window_offset
 
+    def available_window(self, sta_code=None):
+        if self.n_sta == 0:
+            return None
+        index = 0 if sta_code is None else self._code2index[sta_code]
+        ts = self._station_ts[index]
+        return ts.t_oldest, ts.t_lastd
+
     def set_window_offset(self, half_window_offset):
         self.half_window_offset = half_window_offset
         for ts in self._station_ts:
