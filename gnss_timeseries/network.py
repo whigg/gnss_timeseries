@@ -30,10 +30,10 @@ class NetworkTimeSeries:
 
     def available_window(self, sta_code=None):
         if self.n_sta == 0:
-            return None
+            return None, None
         index = 0 if sta_code is None else self._code2index[sta_code]
         ts = self._station_ts[index]
-        return ts.t_oldest, ts.t_lastd
+        return ts.time_range(), ts.t_oldest
 
     def set_window_offset(self, half_window_offset):
         self.half_window_offset = half_window_offset
@@ -63,6 +63,17 @@ class NetworkTimeSeries:
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
             half_window_offset=self.half_window_offset))
+
+    def clear_data_at(self, sta):
+        """Clears the data at one station
+
+        :param sta: station index or code
+        """
+        self.station_timeseries(sta).clear()
+
+    def clear_all_data(self):
+        for ts in self._station_ts:
+            ts.clear()
 
     def station_is_available(self, sta_code):
         return sta_code in self._codes
