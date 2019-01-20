@@ -75,6 +75,9 @@ class NetworkTimeSeries:
         for ts in self._station_ts:
             ts.clear()
 
+    def empty_station_buffer(self, sta_code):
+        return np.isnan(self.station_timeseries(sta_code).t_last)
+
     def station_is_available(self, sta_code):
         return sta_code in self._codes
 
