@@ -168,7 +168,7 @@ class NetworkTimeSeries:
             return code
         return self._code2index[code]
 
-    def eval_pgd(self, t_interval_dict=None, only_hor=True, t_ref_dict=None):
+    def eval_pgd(self, t_interval_dict=None, only_hor=False, t_ref_dict=None):
         pgd_dict = dict()
         if t_ref_dict is None:
             t_ref_dict = dict()
@@ -188,7 +188,7 @@ class NetworkTimeSeries:
                 conf_outliers=conf_outliers, check_finite=check_finite)
         return offset_dict
 
-    def eval_pgd_at_station(self, code, t_interval=None, only_hor=True,
+    def eval_pgd_at_station(self, code, t_interval=None, only_hor=False,
                             t_ref=None):
         return self._station_ts[self._code2index[code]].eval_pgd(
             t_interval=t_interval, only_hor=only_hor, t_ref=t_ref)
@@ -200,9 +200,12 @@ class NetworkTimeSeries:
             check_finite=check_finite)
 
     def eval_pgd_and_mw(self, hipocenter_coords, t_interval_dict=None,
-                        only_hor=True, t_ref_dict=None):
-        self.eval_pgd(t_interval_dict=t_interval_dict, only_hor=only_hor,
-                      t_ref_dict=t_ref_dict)
+                        only_hor=False, t_ref_dict=None):
+        aux = self.eval_pgd(t_interval_dict=t_interval_dict,
+                            only_hor=only_hor, t_ref_dict=t_ref_dict)
+        return self.mw_from_pgd(
+            hipocenter_coords,
+            {code: value['PGD'] for code, value in aux.items()})
 
     def mw_from_pgd(self, hipocenter_coords, pgd_dict):
         self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
@@ -213,7 +216,7 @@ class NetworkTimeSeries:
             if isfinite(pgd):
                 x, y = self._tm(*ref_coords)
                 r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
-                results_dict[code] = (mw_melgar(pgd, r), r)
+                results_dict[code] = (mw_melgar(100*pgd, r), r)
         return results_dict
 
     def set_win_offset(self, win_offset):
@@ -222,5 +225,12 @@ class NetworkTimeSeries:
             ts.win_offset = win
 
 
-def mw_melgar(pgd, r):
-    return (log10(pgd) + 4.434)/(1.047 - 0.138*log10(r))
+def mw_melgar(pgd_cm, r):
+    """
+
+    :param pgd_cm: PGD in cm
+    :param r: distance to hipocenter in km
+    :return:
+    """
+
+    return (log10(pgd_cm) + 4.434)/(1.047 - 0.138*log10(r))
