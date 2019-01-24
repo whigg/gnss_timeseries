@@ -1,6 +1,8 @@
+from math import sqrt, log10, isfinite
 import numpy as np
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
                                              parse_frequency)
+from geoproj.proj import TransverseMercator
 
 
 class NetworkTimeSeries:
@@ -24,6 +26,7 @@ class NetworkTimeSeries:
         self.ts_length = parse_time(length)
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
+        self._tm = TransverseMercator(0., 0.)
 
     def half_win_offset(self):
         return self.half_window_offset
@@ -196,7 +199,28 @@ class NetworkTimeSeries:
             t_eval=t_eval, conf_outliers=conf_outliers,
             check_finite=check_finite)
 
+    def eval_pgd_and_mw(self, hipocenter_coords, t_interval_dict=None,
+                        only_hor=True, t_ref_dict=None):
+        self.eval_pgd(t_interval_dict=t_interval_dict, only_hor=only_hor,
+                      t_ref_dict=t_ref_dict)
+
+    def mw_from_pgd(self, hipocenter_coords, pgd_dict):
+        self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
+        depth_2 = hipocenter_coords[2]*hipocenter_coords[2]
+        results_dict = dict()
+        for code, ref_coords in zip(self._codes, self._ref_coords):
+            pgd = pgd_dict[code]
+            if isfinite(pgd):
+                x, y = self._tm(*ref_coords)
+                r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
+                results_dict[code] = (mw_melgar(pgd, r), r)
+        return results_dict
+
     def set_win_offset(self, win_offset):
         win = parse_time(win_offset)
         for ts in self._station_ts:
             ts.win_offset = win
+
+
+def mw_melgar(pgd, r):
+    return (log10(pgd) + 4.434)/(1.047 - 0.138*log10(r))
