@@ -207,7 +207,7 @@ class NetworkTimeSeries:
             hipocenter_coords,
             {code: value['PGD'] for code, value in aux.items()})
 
-    def mw_from_pgd(self, hipocenter_coords, pgd_dict):
+    def mw_from_pgd(self, hipocenter_coords, pgd_dict, max_distance=800):
         self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
         depth_2 = hipocenter_coords[2]*hipocenter_coords[2]
         results_dict = dict()
@@ -216,7 +216,8 @@ class NetworkTimeSeries:
             if isfinite(pgd):
                 x, y = self._tm(*ref_coords)
                 r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
-                results_dict[code] = (mw_melgar(100*pgd, r), r)
+                if r < max_distance:
+                    results_dict[code] = (mw_melgar(100*pgd, r), r)
         return results_dict
 
     def set_win_offset(self, win_offset):
@@ -232,5 +233,4 @@ def mw_melgar(pgd_cm, r):
     :param r: distance to hipocenter in km
     :return:
     """
-
     return (log10(pgd_cm) + 4.434)/(1.047 - 0.138*log10(r))
