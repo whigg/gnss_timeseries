@@ -84,9 +84,9 @@ class NetworkTimeSeries:
     def station_is_available(self, sta_code):
         return sta_code in self._codes
 
-    def get_coords(self, sta, get_time=True, as_dict=False):
+    def get_coords(self, sta, get_time=True, layers=None, as_dict=False):
         return self.station_timeseries(sta).get(
-            get_time=get_time, as_dict=as_dict)
+            layers=layers, as_dict=as_dict, get_time=get_time)
 
     def get_coords_near(self, sta, t, layers=None, as_dict=False):
         return self.station_timeseries(sta).get_point(
@@ -208,17 +208,50 @@ class NetworkTimeSeries:
             {code: value['PGD'] for code, value in aux.items()})
 
     def mw_from_pgd(self, hipocenter_coords, pgd_dict, max_distance=800):
-        self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
-        depth_2 = hipocenter_coords[2]*hipocenter_coords[2]
+        distance_dict = self._distance_dict(hipocenter_coords,
+                                            max_distance=max_distance)
         results_dict = dict()
-        for code, ref_coords in zip(self._codes, self._ref_coords):
+        for code in self._codes:
             pgd = pgd_dict[code]
             if isfinite(pgd):
-                x, y = self._tm(*ref_coords)
-                r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
-                if r < max_distance:
-                    results_dict[code] = (mw_melgar(100*pgd, r), r)
+                r = distance_dict[code]
+                results_dict[code] = (mw_melgar(100*pgd, r), r)
         return results_dict
+
+    def _distance_dict(self, hipocenter_coords, max_distance=800):
+        self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
+        depth_2 = hipocenter_coords[2]*hipocenter_coords[2]
+        distance_dict = dict()
+        for code, ref_coords in zip(self._codes, self._ref_coords):
+            if ref_coords is None:
+                continue
+            x, y = self._tm(*ref_coords)
+            r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
+            if r < max_distance:
+                distance_dict[code] = r
+        return distance_dict
+
+    def pgd_timeseries(self, t_origin, sta_list=None, tau=10):
+        if sta_list is None:
+            sta_list = self.station_codes()
+        pgd_dict = dict()
+        t_begin = t_origin - tau
+        t_end = self._station_ts[0].t_last
+        for code in sta_list:
+            pgd_dict[code] = self.station_timeseries(
+                code).pgd_timeseries(t_begin, t_end, tau=tau)
+        return pgd_dict
+
+    def ground_displ_timeseries(self, t_origin, sta_list=None, tau=10):
+        if sta_list is None:
+            sta_list = self.station_codes()
+        ground_displ_dict = dict()
+        t_begin = t_origin - tau
+        t_end = self._station_ts[0].t_last
+        for code in sta_list:
+            ground_displ_dict[code] = self.station_timeseries(
+                code).ground_displ_timeseries(t_begin, t_end, tau=tau)
+        return ground_displ_dict
 
     def set_win_offset(self, win_offset):
         win = parse_time(win_offset)
