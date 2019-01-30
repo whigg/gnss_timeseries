@@ -211,10 +211,9 @@ class NetworkTimeSeries:
         distance_dict = self._distance_dict(hipocenter_coords,
                                             max_distance=max_distance)
         results_dict = dict()
-        for code in self._codes:
+        for code, r in distance_dict.items():
             pgd = pgd_dict[code]
             if isfinite(pgd):
-                r = distance_dict[code]
                 results_dict[code] = (mw_melgar(100*pgd, r), r)
         return results_dict
 
@@ -231,15 +230,66 @@ class NetworkTimeSeries:
                 distance_dict[code] = r
         return distance_dict
 
-    def mw_from_pgd_timeseries(self, hipocenter_coords, t_origin, vel_mask=2,
-                               sta_list=None, tau=10, max_distance=800):
-        distance_dict, t = self._distance_dict(hipocenter_coords,
-                                               max_distance=max_distance)
-        # todo COMPUTE time at which each station is reached by the mask
+    def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=2,
+                               sta_list=None, tau=10, max_distance=800,
+                               t_tail=120):
+        distance_dict = self._distance_dict(hipocenter_coords,
+                                            max_distance=max_distance)
+        # times at which each station is reached by the mask
+        t_sorted = []
+        codes_sorted = []
+        for code, r in distance_dict.items():
+            t_sorted.append(r/vel_mask)
+            codes_sorted.append(code)
+        indices = np.argsort(t_sorted)
+        t_sorted = np.array([t_origin + t_sorted[k] for k in indices])
+        codes_sorted = np.array([codes_sorted[k] for k in indices])
         pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau)
-        for code, r in distance_dict.item():
-            print(code, r)
-            # mw_melgar(100*pgd, r)
+        t_min = np.inf
+        t_max = -np.inf
+        for v in pgd_dict.values():
+            aux = v[1][0]
+            if aux < t_min:
+                t_min = aux
+            aux = v[1][-1]
+            if aux > t_max:
+                t_max = aux
+        t_step = 1./self.s_rate
+        t = np.arange(t_min, t_max + 0.5*t_step, t_step)
+        # todo Terminar ESTO
+
+        print('~'*200)
+        print(t.size)
+        print('.'*125)
+        for pgd in pgd_dict.values():
+            print(pgd.size)
+        print('~'*200)
+        indices_mask = []
+        i_aux = 0
+        for tau in t_sorted:
+            if tau > t[-1]:
+                break
+            i_aux += np.argmin(np.abs(t[i_aux:] - tau))
+            indices_mask.append(i_aux)
+        i_mask_0 = indices_mask[0]
+        t_mw = (t[i_mask_0:(indices_mask[-1] + int(t_tail*self.s_rate))]
+                - t_origin)
+        mw = np.zeros_like(t_mw)
+        i_mask_curr = i_mask_0
+        indices_mask.append(i_mask_0 + mw.size)
+        print(indices_mask, t.size, 'qwjfnwpofkw')
+        for j in range(1, len(indices_mask)):
+            i_mask_next = indices_mask[j]
+            for i in range(i_mask_curr, i_mask_next):
+                sum_mw = 0.0
+                n_ok = 0
+                for code in codes_sorted[:j]:
+                    if pgd_dict[code][i] > 0.00001:
+                        sum_mw += mw_melgar(100*pgd_dict[code][i],
+                                            distance_dict[code])
+                        n_ok += 1
+                mw[i-i_mask_0] = sum_mw/n_ok if n_ok > 0 else np.nan
+        return mw, t_mw
 
     def pgd_timeseries(self, t_origin, sta_list=None, tau=10):
         if sta_list is None:
@@ -250,8 +300,7 @@ class NetworkTimeSeries:
         for code in sta_list:
             pgd_dict[code] = self.station_timeseries(
                 code).pgd_timeseries(t_begin, t_end, tau=tau)
-        t = self._station_ts[0].time_vector_interval(t_begin, t_end)
-        return pgd_dict, t
+        return pgd_dict
 
     def ground_displ_timeseries(self, t_origin, sta_list=None, tau=10):
         if sta_list is None:
