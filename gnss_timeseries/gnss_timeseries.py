@@ -165,23 +165,23 @@ class GnssTimeSeries(LayeredTimeSeries):
         return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[mask][k_max])
 
     def pgd_timeseries(self, t_begin, t_end, tau=10):
-        t, gd = self.ground_displ_timeseries(t_begin, t_end, tau=tau)
-        pgd = np.zeros(t.size)
+        gd = self.ground_displ_timeseries(t_begin, t_end, tau=tau)
+        pgd = np.zeros(gd.size)
         curr_max = 0.0
         for k in range(gd.size):
             if gd[k] > curr_max:
                 curr_max = gd[k]
             pgd[k] = curr_max
-        return t, pgd
+        return pgd
 
     def ground_displ_timeseries(self, t_begin, t_end, tau=10):
         k_tau = int(round(tau*self.s_rate))
-        t, coords = self.interval(t_begin, t_end)
-        aux = np.zeros(t.size)
+        coords = self.interval(t_begin, t_end)
+        aux = np.zeros(coords[0].size)
         for a in range(3):
             x = coords[a] - coords[a][:k_tau].mean()
             aux += x*x
-        return t, np.sqrt(aux)
+        return np.sqrt(aux)
 
     def detect_wave(self, t_guess=None, **kwargs):
         """

@@ -231,6 +231,16 @@ class NetworkTimeSeries:
                 distance_dict[code] = r
         return distance_dict
 
+    def mw_from_pgd_timeseries(self, hipocenter_coords, t_origin, vel_mask=2,
+                               sta_list=None, tau=10, max_distance=800):
+        distance_dict, t = self._distance_dict(hipocenter_coords,
+                                               max_distance=max_distance)
+        # todo COMPUTE time at which each station is reached by the mask
+        pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau)
+        for code, r in distance_dict.item():
+            print(code, r)
+            # mw_melgar(100*pgd, r)
+
     def pgd_timeseries(self, t_origin, sta_list=None, tau=10):
         if sta_list is None:
             sta_list = self.station_codes()
@@ -240,7 +250,8 @@ class NetworkTimeSeries:
         for code in sta_list:
             pgd_dict[code] = self.station_timeseries(
                 code).pgd_timeseries(t_begin, t_end, tau=tau)
-        return pgd_dict
+        t = self._station_ts[0].time_vector_interval(t_begin, t_end)
+        return pgd_dict, t
 
     def ground_displ_timeseries(self, t_origin, sta_list=None, tau=10):
         if sta_list is None:
