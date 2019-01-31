@@ -164,8 +164,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         k_max = np.argmax(displ_2)
         return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[mask][k_max])
 
-    def pgd_timeseries(self, t_begin, t_end, tau=10):
-        gd, t = self.ground_displ_timeseries(t_begin, t_end, tau=tau)
+    def pgd_timeseries(self, t_origin, tau=10):
+        gd, t = self.ground_displ_timeseries(
+            t_origin, tau=tau)
         pgd = np.zeros(gd.size)
         curr_max = 0.0
         for k in range(gd.size):
@@ -174,10 +175,9 @@ class GnssTimeSeries(LayeredTimeSeries):
             pgd[k] = curr_max
         return pgd, t
 
-    def ground_displ_timeseries(self, t_begin, t_end, tau=10):
+    def ground_displ_timeseries(self, t_origin, tau=10):
         k_tau = int(round(tau*self.s_rate))
-        coords, t = self.interval(t_begin, t_end, get_time=True)
-        print('E.size = ', coords[0].size, self.t_last - t_end)
+        coords, t = self.interval(t_origin - tau, self.t_last, get_time=True)
         aux = np.zeros(coords[0].size)
         for a in range(3):
             x = coords[a] - coords[a][:k_tau].mean()

@@ -295,22 +295,18 @@ class NetworkTimeSeries:
         if sta_list is None:
             sta_list = self.station_codes()
         pgd_dict = dict()
-        t_begin = t_origin - tau
-        t_end = self._station_ts[0].t_last
         for code in sta_list:
             pgd_dict[code] = self.station_timeseries(
-                code).pgd_timeseries(t_begin, t_end, tau=tau)
+                code).pgd_timeseries(t_origin, tau=tau)
         return pgd_dict
 
     def ground_displ_timeseries(self, t_origin, sta_list=None, tau=10):
         if sta_list is None:
             sta_list = self.station_codes()
         ground_displ_dict = dict()
-        t_begin = t_origin - tau
-        t_end = self._station_ts[0].t_last
         for code in sta_list:
             ground_displ_dict[code] = self.station_timeseries(
-                code).ground_displ_timeseries(t_begin, t_end, tau=tau)
+                code).ground_displ_timeseries(t_origin, tau=tau)
         return ground_displ_dict
 
     def set_win_offset(self, win_offset):
