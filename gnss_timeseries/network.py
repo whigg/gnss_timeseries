@@ -232,7 +232,7 @@ class NetworkTimeSeries:
 
     def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=3.,
                                sta_list=None, tau=10, max_distance=800,
-                               window=600):
+                               window=300):
         pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau,
                                        window=window)
 
@@ -280,7 +280,7 @@ class NetworkTimeSeries:
         return mw, t_mw
 
     def pgd_timeseries(self, t_origin, sta_list=None,
-                       tau=10, window=600):
+                       tau=10, window=300):
         if sta_list is None:
             sta_list = self.station_codes()
         pgd_dict = dict()
@@ -290,7 +290,7 @@ class NetworkTimeSeries:
         return pgd_dict
 
     def ground_displ_timeseries(self, t_origin, sta_list=None,
-                                tau=10, window=600):
+                                tau=10, window=300):
         if sta_list is None:
             sta_list = self.station_codes()
         ground_displ_dict = dict()
