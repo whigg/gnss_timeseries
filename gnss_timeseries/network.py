@@ -1,4 +1,4 @@
-from math import sqrt, log10, isfinite
+from math import sqrt, isfinite
 import numpy as np
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
                                              parse_frequency)
@@ -230,83 +230,73 @@ class NetworkTimeSeries:
                 distance_dict[code] = r
         return distance_dict
 
-    def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=2,
+    def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=3.,
                                sta_list=None, tau=10, max_distance=800,
-                               t_tail=120):
+                               window=600):
+        pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau,
+                                       window=window)
+
         distance_dict = self._distance_dict(hipocenter_coords,
                                             max_distance=max_distance)
         # times at which each station is reached by the mask
-        t_sorted = []
-        codes_sorted = []
+
+        t_mask = []
+        codes = []
         for code, r in distance_dict.items():
-            t_sorted.append(r/vel_mask)
-            codes_sorted.append(code)
-        indices = np.argsort(t_sorted)
-        t_sorted = np.array([t_origin + t_sorted[k] for k in indices])
-        codes_sorted = np.array([codes_sorted[k] for k in indices])
-        pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau)
+            if pgd_dict[code][0] is None:  # not enough data
+                continue
+            t_mask.append(t_origin + r/vel_mask)
+            codes.append(code)
+        t_mask = np.array(t_mask)
+        # minimum and maximum times
         t_min = np.inf
         t_max = -np.inf
-        for v in pgd_dict.values():
-            aux = v[1][0]
+        for code in codes:
+            t = pgd_dict[code][1]
+            aux = t[0]
             if aux < t_min:
                 t_min = aux
-            aux = v[1][-1]
+            aux = t[-1]
             if aux > t_max:
                 t_max = aux
         t_step = 1./self.s_rate
-        t = np.arange(t_min, t_max + 0.5*t_step, t_step)
-        # todo Terminar ESTO
+        t_mw = np.arange(t_min-t_origin, t_max-t_origin+0.5*t_step, t_step)
+        mw = np.zeros(t_mw.size)
+        count = np.zeros(t_mw.size, dtype=int)
 
-        print('~'*200)
-        print(t.size)
-        print('.'*125)
-        for pgd in pgd_dict.values():
-            print(pgd.size)
-        print('~'*200)
-        indices_mask = []
-        i_aux = 0
-        for tau in t_sorted:
-            if tau > t[-1]:
-                break
-            i_aux += np.argmin(np.abs(t[i_aux:] - tau))
-            indices_mask.append(i_aux)
-        i_mask_0 = indices_mask[0]
-        t_mw = (t[i_mask_0:(indices_mask[-1] + int(t_tail*self.s_rate))]
-                - t_origin)
-        mw = np.zeros_like(t_mw)
-        i_mask_curr = i_mask_0
-        indices_mask.append(i_mask_0 + mw.size)
-        print(indices_mask, t.size, 'qwjfnwpofkw')
-        for j in range(1, len(indices_mask)):
-            i_mask_next = indices_mask[j]
-            for i in range(i_mask_curr, i_mask_next):
-                sum_mw = 0.0
-                n_ok = 0
-                for code in codes_sorted[:j]:
-                    if pgd_dict[code][i] > 0.00001:
-                        sum_mw += mw_melgar(100*pgd_dict[code][i],
-                                            distance_dict[code])
-                        n_ok += 1
-                mw[i-i_mask_0] = sum_mw/n_ok if n_ok > 0 else np.nan
+        for code, t_m in zip(codes, t_mask):
+            pgd, t = pgd_dict[code]
+            if t_m > t[-1]:
+                continue
+            k = np.argmin(np.abs(t-t_m))
+            aux = mw_melgar(100*pgd[k:], distance_dict[code])
+            i1 = np.argmin(np.abs(t_mw - (t[k] - t_origin)))
+            i2 = i1 + aux.size
+            mw[i1:i2] += aux
+            count[i1:i2] += 1
+        count[count == 0] = 1
+        mw /= count
+        mw[mw < 1.e-5] = np.nan
         return mw, t_mw
 
-    def pgd_timeseries(self, t_origin, sta_list=None, tau=10):
+    def pgd_timeseries(self, t_origin, sta_list=None,
+                       tau=10, window=600):
         if sta_list is None:
             sta_list = self.station_codes()
         pgd_dict = dict()
         for code in sta_list:
             pgd_dict[code] = self.station_timeseries(
-                code).pgd_timeseries(t_origin, tau=tau)
+                code).pgd_timeseries(t_origin, tau=tau, window=window)
         return pgd_dict
 
-    def ground_displ_timeseries(self, t_origin, sta_list=None, tau=10):
+    def ground_displ_timeseries(self, t_origin, sta_list=None,
+                                tau=10, window=600):
         if sta_list is None:
             sta_list = self.station_codes()
         ground_displ_dict = dict()
         for code in sta_list:
             ground_displ_dict[code] = self.station_timeseries(
-                code).ground_displ_timeseries(t_origin, tau=tau)
+                code).ground_displ_timeseries(t_origin, tau=tau, window=window)
         return ground_displ_dict
 
     def set_win_offset(self, win_offset):
@@ -322,4 +312,4 @@ def mw_melgar(pgd_cm, r):
     :param r: distance to hipocenter in km
     :return:
     """
-    return (log10(pgd_cm) + 4.434)/(1.047 - 0.138*log10(r))
+    return (np.log10(pgd_cm) + 4.434)/(1.047 - 0.138*np.log10(r))
