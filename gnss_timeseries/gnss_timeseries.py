@@ -197,7 +197,10 @@ class GnssTimeSeries(LayeredTimeSeries):
 
     def _get_aux(self, t_interval, **kwargs):
         if t_interval is None:
-            return self.get(**kwargs)
+            if np.isnan(self.t_oldest):
+                return self.get(**kwargs)
+            else:
+                return self.interval(self.t_oldest, self.t_last, **kwargs)
         elif isinstance(t_interval, float):
             return self.last(t_interval, **kwargs)
         else:
