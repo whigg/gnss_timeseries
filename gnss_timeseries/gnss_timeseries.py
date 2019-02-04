@@ -167,11 +167,15 @@ class GnssTimeSeries(LayeredTimeSeries):
     def pgd_timeseries(self, t_origin, tau=10, window=600):
         gd, t = self.ground_displ_timeseries(
             t_origin, tau=tau, window=window)
+        if gd is None:
+            return None, None
         if np.isfinite(gd).sum() < 0.75*gd.size:
             return None, None
         return np.maximum.accumulate(np.nan_to_num(gd)), t
 
     def ground_displ_timeseries(self, t_origin, tau=10, window=600):
+        if np.isnan(self.t_last):
+            return None, None
         k_tau = int(round(tau*self.s_rate))
         coords, t = self.interval(
             t_origin - tau, min(self.t_last, t_origin+window), get_time=True)

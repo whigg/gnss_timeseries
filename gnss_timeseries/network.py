@@ -260,6 +260,8 @@ class NetworkTimeSeries:
                 continue
             t_mask.append(t_origin + r/vel_mask)
             codes.append(code)
+        if len(codes) == 0:
+            return None, None
         t_mask = np.array(t_mask)
         # minimum and maximum times
         t_min = np.inf
