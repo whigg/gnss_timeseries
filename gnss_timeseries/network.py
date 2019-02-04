@@ -31,12 +31,22 @@ class NetworkTimeSeries:
     def half_win_offset(self):
         return self.half_window_offset
 
-    def available_window(self, sta_code=None):
+    def available_window(self):
         if self.n_sta == 0:
-            return None, None
-        index = 0 if sta_code is None else self._code2index[sta_code]
-        ts = self._station_ts[index]
-        return ts.time_range(), ts.t_oldest
+            return (np.nan, np.nan), np.nan
+        t_min = np.inf
+        t_max = -np.inf
+        t_oldest = np.inf
+        for index in range(self.n_sta):
+            ts = self._station_ts[index]
+            aux = ts.time_range()
+            if aux[0] < t_min:
+                t_min = aux[0]
+            if aux[1] > t_max:
+                t_max = aux[1]
+            if ts.t_oldest < t_oldest:
+                t_oldest = ts.t_oldest
+        return (t_min, t_max), t_oldest
 
     def set_window_offset(self, half_window_offset):
         self.half_window_offset = half_window_offset
@@ -212,9 +222,12 @@ class NetworkTimeSeries:
                                             max_distance=max_distance)
         results_dict = dict()
         for code, r in distance_dict.items():
-            pgd = pgd_dict[code]
-            if isfinite(pgd):
-                results_dict[code] = (mw_melgar(100*pgd, r), r)
+            try:
+                pgd = pgd_dict[code]
+                if isfinite(pgd):
+                    results_dict[code] = (mw_melgar(100*pgd, r), r)
+            except KeyError:
+                pass
         return results_dict
 
     def _distance_dict(self, hipocenter_coords, max_distance=800):
