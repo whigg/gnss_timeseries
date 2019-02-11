@@ -163,6 +163,10 @@ class NetworkTimeSeries:
             return self._ref_coords
         return self._ref_coords[self._sta2index(code)]
 
+    def ref_coords_vectors(self):
+        return (np.array([x[0] for x in self._ref_coords]),
+                np.array([x[1] for x in self._ref_coords]))
+
     def station_codes(self):
         return self._codes
 
