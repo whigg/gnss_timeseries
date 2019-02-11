@@ -153,12 +153,14 @@ class NetworkTimeSeries:
         self.station_timeseries(sta).set_series(
             {'coords': coords_aux, 'std_coords': std_coords_aux}, t[-1])
 
-    def ref_coords(self, code):
+    def ref_coords(self, code=None):
         """Reference coordinates of a station
 
         :param code: station index or code
         :return: longitude, latitude
         """
+        if code is None:
+            return self._ref_coords
         return self._ref_coords[self._sta2index(code)]
 
     def station_codes(self):
