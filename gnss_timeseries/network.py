@@ -27,6 +27,9 @@ class NetworkTimeSeries:
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
         self._tm = TransverseMercator(0., 0.)
+        self._lat_range = np.array([100., -100.])
+        self._lon_range = np.array([370., -200.])
+        self._lon_ref = np.nan
 
     def half_win_offset(self):
         return self.half_window_offset
@@ -76,6 +79,23 @@ class NetworkTimeSeries:
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
             half_window_offset=self.half_window_offset))
+        if ref_coords is not None:
+            lat = ref_coords[1]
+            if lat < self._lat_range[0]:
+                self._lat_range[0] = lat
+            elif lat > self._lat_range[1]:
+                self._lat_range[1] = lat
+            lon = ref_coords[0]
+            if lon < self._lon_range[0]:
+                self._lon_range[0] = lon
+            elif lon > self._lon_range[1]:
+                self._lon_range[1] = lon
+
+    def lat_range(self):
+        return self._lat_range
+
+    def lon_range(self):
+        return self._lon_range
 
     def clear_data_at(self, sta):
         """Clears the data at one station
