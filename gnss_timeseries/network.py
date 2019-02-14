@@ -204,6 +204,9 @@ class NetworkTimeSeries:
             return code
         return self._code2index[code]
 
+    def get_indices(self, codes):
+        return [self._code2index[code] for code in codes]
+
     def eval_pgd(self, t_interval_dict=None, only_hor=False, t_ref_dict=None):
         pgd_dict = dict()
         if t_ref_dict is None:
