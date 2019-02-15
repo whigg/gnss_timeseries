@@ -183,9 +183,15 @@ class NetworkTimeSeries:
             return self._ref_coords
         return self._ref_coords[self._sta2index(code)]
 
-    def ref_coords_vectors(self):
-        return (np.array([x[0] for x in self._ref_coords]),
-                np.array([x[1] for x in self._ref_coords]))
+    def ref_coord_vectors(self, stations=None):
+        if stations is None:
+            return (np.array([x[0] for x in self._ref_coords]),
+                    np.array([x[1] for x in self._ref_coords]))
+        coord_vectors = [np.full(len(stations), np.nan) for _ in range(2)]
+        for k, code in enumerate(stations):
+            index = self._code2index[code]
+            coord_vectors[0][k], coord_vectors[1][k] = self._ref_coords[index]
+        return coord_vectors
 
     def station_codes(self):
         return self._codes
