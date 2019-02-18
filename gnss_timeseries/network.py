@@ -213,30 +213,28 @@ class NetworkTimeSeries:
     def get_indices(self, codes):
         return [self._code2index[code] for code in codes]
 
-    def eval_pgd(self, t_interval_dict=None, only_hor=False, t_ref_dict=None):
+    def eval_pgd(self, t_origin, t_s_dict=None, t_tol=120, only_hor=False):
         pgd_dict = dict()
-        if t_ref_dict is None:
-            t_ref_dict = dict()
-        if t_interval_dict is None:
-            t_interval_dict = dict()
-        for code, index in self._code2index.items():
+        if t_s_dict is None:
+            t_s_dict = dict()
+        for code in self._codes:
             pgd_dict[code] = self.eval_pgd_at_station(
-                code, t_interval=t_interval_dict.get(code), only_hor=only_hor,
-                t_ref=t_ref_dict.get(code))
+                code, t_origin, t_s=t_s_dict.get(code),
+                t_tol=t_tol, only_hor=only_hor)
         return pgd_dict
 
     def eval_offset(self, t_eval_dict, conf_outliers=3, check_finite=True):
         offset_dict = dict()
-        for code, index in self._code2index.items():
+        for code in self._codes:
             offset_dict[code] = self.eval_offset_at_station(
                 code, t_eval_dict.get(code),
                 conf_outliers=conf_outliers, check_finite=check_finite)
         return offset_dict
 
-    def eval_pgd_at_station(self, code, t_interval=None, only_hor=False,
-                            t_ref=None):
+    def eval_pgd_at_station(self, code, t_origin, t_s=None, t_tol=None,
+                            only_hor=False):
         return self._station_ts[self._code2index[code]].eval_pgd(
-            t_interval=t_interval, only_hor=only_hor, t_ref=t_ref)
+            t_origin, t_s=t_s, t_tol=t_tol, only_hor=only_hor)
 
     def eval_offset_at_station(self, code, t_eval,
                                conf_outliers=3, check_finite=True):
@@ -244,10 +242,10 @@ class NetworkTimeSeries:
             t_eval=t_eval, conf_outliers=conf_outliers,
             check_finite=check_finite)
 
-    def eval_pgd_and_mw(self, hipocenter_coords, t_interval_dict=None,
-                        only_hor=False, t_ref_dict=None):
-        aux = self.eval_pgd(t_interval_dict=t_interval_dict,
-                            only_hor=only_hor, t_ref_dict=t_ref_dict)
+    def eval_pgd_and_mw(self, hipocenter_coords, t_origin, t_s_dict=None,
+                        t_tol=120, only_hor=False):
+        aux = self.eval_pgd(t_origin, t_s_dict=t_s_dict, t_tol=t_tol,
+                            only_hor=only_hor)
         return self.mw_from_pgd(
             hipocenter_coords,
             {code: value['PGD'] for code, value in aux.items()})

@@ -10,6 +10,7 @@ _all_labels = ('E', 'N', 'U', 'stdE', 'stdN', 'stdU')
 _coord_labels = ('E', 'N', 'U')
 _std_coord_labels = ('stdE', 'stdN', 'stdU')
 coord_layers = ('coords', 'std_coords')
+_dict_nan_pgd = dict(PGD=np.nan, t_PGD=np.nan)
 
 
 def parse_time(t_str):
@@ -133,36 +134,48 @@ class GnssTimeSeries(LayeredTimeSeries):
             offset_dict['post_mean' + c] = mean_post
         return offset_dict
 
-    def eval_pgd(self, t_interval=None, only_hor=True, t_ref=None):
+    def eval_pgd(self, t_origin, t_s=None, t_tol=120,
+                 only_hor=True):
         """Computes the Peak Ground Displacement (PGD) and the time of its
         occurrence.
 
-        :param t_interval: time interval as a sequence (begin, end).
-            If `None`, the whole time series is used. If a single number is
-            passed, this parameter is interpreted as the length of the
-            interval containing the most recent data.
+        :param t_origin: origin time of earthquake.
+        :param t_s: reference time of the arrival of S-waves
+        :param t_tol: maximum delay between t_s and the PGD.
         :param only_hor: only horizontal coordinates?
-        :param t_ref: approximate time of occurrence of PGD.
         :return: PGD, time of occurrence of PGD.
         """
-        enu, t = self._get_aux(t_interval, get_time=True)
-        if t_ref is None:
-            i_ref = int(0.25*t.size)
+        t1 = t_origin - 60
+        if t_s is None:
+            t_s = t_origin
+            t_tol = 600
+        t2 = t_s + t_tol
+
+        enu, t = self.interval(t1, t2, get_time=True, check_input=True)
+        if t.size == 0:
+            return _dict_nan_pgd
+        index_eval = index_eval_factory(t)
+        if t_origin is None:
+            i_origin = int(0.25*t.size)
         else:
-            i_ref = int(t.size*(t_ref-t[0])/(t[-1] - t[0]))
+            i_origin = index_eval(t_origin)
+            if i_origin < 0 or i_origin >= t.size:
+                return _dict_nan_pgd
         # assumption: if "E" is NaN "N" and "U" also are.
         mask = np.logical_not(np.isnan(enu[0]))
-        k_ref = mask[:i_ref].sum()
-        if k_ref < 6:
-            return dict(PGD=np.nan, t_PGD=np.nan)
-        aux = np.zeros(mask.sum())
+        i_s = index_eval(t_s)
+        n_ref = mask[:i_origin].sum()
+        n_signal = mask[i_s:].sum()
+        if n_ref < 6 or n_signal < 6:
+            return _dict_nan_pgd
+        aux = np.zeros(t.size - i_s)
         displ_2 = np.zeros_like(aux)
         for k in range(2 if only_hor else 3):
-            aux[:] = enu[k][mask]
-            aux -= np.median(aux[:k_ref])
+            aux[:] = enu[k][i_s:]
+            aux -= np.nanmedian(enu[k][:i_origin])
             displ_2 += aux*aux
-        k_max = np.argmax(displ_2)
-        return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[mask][k_max])
+        k_max = np.nanargmax(displ_2)
+        return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[i_s:][k_max])
 
     def pgd_timeseries(self, t_origin, tau=10, window=600):
         gd, t = self.ground_displ_timeseries(
@@ -195,13 +208,11 @@ class GnssTimeSeries(LayeredTimeSeries):
         """
         pass
 
-    def _get_aux(self, t_interval, **kwargs):
-        if t_interval is None:
-            if np.isnan(self.t_oldest):
-                return self.get(**kwargs)
-            else:
-                return self.interval(self.t_oldest, self.t_last, **kwargs)
-        elif isinstance(t_interval, float):
-            return self.last(t_interval, **kwargs)
-        else:
-            return self.interval(*t_interval, **kwargs)
+
+def index_eval_factory(t):
+    aux = (t.size - 1)/(t[-1] - t[0])
+
+    def index_eval(tau):
+        return int(round(aux*(tau - t[0])))
+
+    return index_eval
