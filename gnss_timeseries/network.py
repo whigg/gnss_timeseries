@@ -15,7 +15,7 @@ class NetworkTimeSeries:
     """
 
     def __init__(self, length='1h', sampling_rate='1/s',
-                 half_window_offset='10m', **kwargs_other):
+                 half_window_offset='7m', **kwargs_other):
         self.n_sta = 0
         self._station_ts = []
         self._ref_coords = []
