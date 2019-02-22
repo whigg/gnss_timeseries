@@ -91,7 +91,7 @@ class GnssTimeSeries(LayeredTimeSeries):
             the means of the coordinates before and after the event.
         """
         offset_dict = dict(t_offset=t_eval, half_win=self.half_win_offset)
-        if np.isnan(t_eval):
+        if np.isnan(t_eval) or np.isnan(self.t_last):
             for k in range(3):
                 c = _coord_labels[k]
                 offset_dict[c] = np.nan
@@ -145,6 +145,8 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param only_hor: only horizontal coordinates?
         :return: PGD, time of occurrence of PGD.
         """
+        if np.isnan(self.t_last):
+            return _dict_nan_pgd
         t1 = t_origin - 60
         if t_s is None:
             t_s = t_origin
