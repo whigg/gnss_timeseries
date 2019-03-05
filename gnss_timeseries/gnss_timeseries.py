@@ -147,7 +147,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         """
         if np.isnan(self.t_last):
             return _dict_nan_pgd
-        t1 = t_origin - 60
+        t1 = t_origin - 180
         if t_s is None:
             t_s = t_origin
             t_tol = 600
@@ -168,7 +168,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         i_s = index_eval(t_s)
         n_ref = mask[:i_origin].sum()
         n_signal = mask[i_s:].sum()
-        if n_ref < 6 or n_signal < 6:
+        if n_ref < 6 or n_signal < 4:
             return _dict_nan_pgd
         aux = np.zeros(t.size - i_s)
         displ_2 = np.zeros_like(aux)
