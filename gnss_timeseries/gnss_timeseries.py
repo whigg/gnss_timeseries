@@ -42,16 +42,17 @@ class GnssTimeSeries(LayeredTimeSeries):
     intervals.
     """
 
-    def __init__(self, length='1h', sampling_rate='1/s',
-                 half_window_offset='10m'):
+    def __init__(self, length='1h', sampling_rate='1/s', window_offset='10m'):
         """
 
         :param length: length of the timeseries. It can be a float/int value
             in seconds or a string like '10m', '1h', '12h'.
         :param sampling_rate: sampling rate. It can be a float/int value
             in hertz or a string like '1/s', '3/s', '10/m'.
+        :param window_offset: length of window where the offset is computed
         :type length: str or float
         :type sampling_rate: str
+        :type window_offset: str or float
         """
         layers_dict = {'coords': _coord_labels,
                        'std_coords': _std_coord_labels}
@@ -60,10 +61,15 @@ class GnssTimeSeries(LayeredTimeSeries):
             layers_dict, 'coords')
         # window to compute the mean of a coordinate before and after a
         # coseismic offset
-        self.half_win_offset = parse_time(half_window_offset)
+        self.win_offset = parse_time(window_offset)
+        self._ref_values_are_set = False
+        self._enu_ref = dict()
+        self._var_enu_ref = dict()
+        self._t_origin = -1
+        self._ref_values_window = -1
 
     def set_window_offset(self, window_offset):
-        self.half_win_offset = parse_time(window_offset)
+        self.win_offset = parse_time(window_offset)
 
     def get_around(self, t, window, layers=coord_layers,
                    get_time=False, as_dict=False):
@@ -81,7 +87,61 @@ class GnssTimeSeries(LayeredTimeSeries):
                              min(t + window, self.t_last), layers=layers,
                              get_time=get_time, as_dict=as_dict)
 
-    def eval_offset(self, t_eval, conf_outliers=3, check_finite=True):
+    def _eval_mean_values(self, t_start, t_end, min_data_points=4,
+                          conf_outliers=3, check_finite=True):
+        """Computes mean and variance of coordinates in a window
+        before an event. Removes outliers.
+
+        :param t_start: start of the window
+        :param t_end: end of the window
+        :param min_data_points: minimum valid data points (non-outliers) to
+            compute a value.
+        :param conf_outliers: confidence level: 1, 2, 3 or 4.
+        :param check_finite: check for NaN or Inf values?
+        :return: dictionary with the means, dictionary with the variances
+        """
+        values = self.interval(t_start, t_end,
+                               get_time=False, check_input=True,
+                               layers=coord_layers)
+        enu = values['coords']
+        std_enu = values['coords']
+        enu_mean = dict()
+        var_enu_mean = dict()
+        for k in range(3):
+            c = _coord_labels[k]
+            mean_x, mask_ok = eval_no_outliers(
+                np.mean, enu[k], confidence=conf_outliers,
+                check_finite=check_finite, get_mask_ok=True)
+            n_ok = mask_ok.sum()
+            if n_ok < min_data_points:
+                enu_mean[c] = np.nan
+                var_enu_mean[c] = np.nan
+            else:
+                enu_mean[c] = mean_x
+                aux = std_enu[k][mask_ok]
+                aux *= aux
+                var_enu_mean[k] = aux.sum()/(n_ok*n_ok)
+        return enu_mean, var_enu_mean
+
+    def _eval_ref_values(self, t_origin, window=180, **kwargs):
+        """Computes reference values of coordinates as a mean in a window
+        before an event. Removes outliers.
+
+        :param t_origin: approximate origin time
+        :param window: length of the time window
+        :param kwargs: key-worded arguments. See the method
+            :py:func:`_eval_mean_values`
+        """
+        enu_mean, var_enu_mean = self._eval_mean_values(
+            t_origin - window, t_origin, **kwargs)
+        self._enu_ref.update(enu_mean)
+        self._var_enu_ref.update(var_enu_mean)
+        self._t_origin = t_origin
+        self._ref_values_window = window
+        self._ref_values_are_set = True
+
+    def eval_offset(self, t_eval, min_data_points=4,
+                    conf_outliers=3, check_finite=True):
         """Computes the Static Offset given a reference time
 
         :param t_eval: reference unix time
@@ -89,9 +149,16 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param check_finite: check for NaN or inf values
         :return: dictionary with offsets, their standard deviations and
             the means of the coordinates before and after the event.
+
+        .. warning::
+            The reference values must be computed beforehand
         """
-        offset_dict = dict(t_offset=t_eval, half_win=self.half_win_offset)
-        if np.isnan(t_eval) or np.isnan(self.t_last):
+        offset_dict = dict(t_origin=self._t_origin,
+                           ref_val_win=self._ref_values_window,
+                           t_offset=t_eval,
+                           win_offset=self.win_offset)
+        if (not self._ref_values_are_set or
+                np.isnan(t_eval) or np.isnan(self.t_last)):
             for k in range(3):
                 c = _coord_labels[k]
                 offset_dict[c] = np.nan
@@ -99,43 +166,28 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['pre_mean_' + c] = np.nan
                 offset_dict['post_mean_' + c] = np.nan
             return offset_dict
-        all_fields, t = self.get_around(
-            t_eval, self.half_win_offset, layers=('coords', 'std_coords'),
-            get_time=True)
-        n = int(round(0.5*(all_fields['coords'][0].size-1)))
-        enu = all_fields['coords']
-        std_enu = all_fields['coords']
+
+        enu_mean, var_enu_mean = self._eval_mean_values(
+            t_eval, t_eval + self.win_offset, min_data_points=min_data_points,
+            conf_outliers=conf_outliers, check_finite=check_finite)
+
         for k in range(3):
             c = _coord_labels[k]
-            mean_pre, mask_ok_pre = eval_no_outliers(
-                np.mean, enu[k][:n], confidence=conf_outliers,
-                check_finite=check_finite, get_mask_ok=True)
-            mean_post, mask_ok_post = eval_no_outliers(
-                np.mean, enu[k][n:], confidence=conf_outliers,
-                check_finite=check_finite, get_mask_ok=True)
-            offset_dict[c] = mean_post - mean_pre
-            c = '_' + c
-            if mask_ok_post.sum() == 0 or mask_ok_pre.sum() == 0:
-                offset_dict['std' + c] = np.nan
-                offset_dict['pre_mean' + c] = np.nan
-                offset_dict['post_mean' + c] = np.nan
+            if np.isnan(enu_mean[c]):
+                offset_dict[c] = np.nan
+                offset_dict['std_' + c] = np.nan
+                offset_dict['pre_mean_' + c] = np.nan
+                offset_dict['post_mean_' + c] = np.nan
                 continue
-            aux = std_enu[k][:n][mask_ok_pre]
-            aux *= aux
-            var1 = aux.sum()
-            var1 /= mask_ok_pre.sum()**2
-            aux = std_enu[k][n:][mask_ok_post]
-            aux *= aux
-            var2 = aux.sum()
-            var2 /= mask_ok_post.sum()**2
-
-            offset_dict['std' + c] = 0.5*np.sqrt(var1 + var2)
-            offset_dict['pre_mean' + c] = mean_pre
-            offset_dict['post_mean' + c] = mean_post
+            offset_dict[c] = enu_mean[c] - self._enu_ref[c]
+            offset_dict['std_' + c] = 0.5*np.sqrt(self._var_enu_ref[c] +
+                                                 var_enu_mean[c])
+            offset_dict['pre_mean_' + c] = self._enu_ref[c]
+            offset_dict['post_mean_' + c] = enu_mean[c]
         return offset_dict
 
-    def eval_pgd(self, t_origin, t_s=None, t_tol=120,
-                 only_hor=True):
+    def eval_pgd(self, t_origin, t_s=None, t_tol=180,
+                 only_hor=True, ref_val_window=180, min_data_points=4):
         """Computes the Peak Ground Displacement (PGD) and the time of its
         occurrence.
 
@@ -143,60 +195,60 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param t_s: reference time of the arrival of S-waves
         :param t_tol: maximum delay between t_s and the PGD.
         :param only_hor: only horizontal coordinates?
+        :param ref_val_window: time window to compute reference values
+        :param min_data_points: minimum valid data points (non-outliers) to
+            compute a value.
         :return: PGD, time of occurrence of PGD.
         """
+        if not self._ref_values_are_set:
+            self._eval_ref_values(t_origin, window=ref_val_window,
+                                  min_data_points=min_data_points)
         if np.isnan(self.t_last):
             return _dict_nan_pgd
-        t1 = t_origin - 180
         if t_s is None:
             t_s = t_origin
-            t_tol = 600
-        t2 = t_s + t_tol
+            t_tol = 420
+        t_end = t_s + t_tol
 
-        enu, t = self.interval(t1, t2, get_time=True, check_input=True)
-        if t.size == 0:
+        enu, t = self.interval(t_origin, t_end,
+                               get_time=True, check_input=True)
+        if t.size < min_data_points:
             return _dict_nan_pgd
-        index_eval = index_eval_factory(t)
-        if t_origin is None:
-            i_origin = int(0.25*t.size)
-        else:
-            i_origin = index_eval(t_origin)
-            if i_origin < 0 or i_origin >= t.size:
-                return _dict_nan_pgd
         # assumption: if "E" is NaN "N" and "U" also are.
         mask = np.logical_not(np.isnan(enu[0]))
-        i_s = index_eval(t_s)
-        n_ref = mask[:i_origin].sum()
-        n_signal = mask[i_s:].sum()
-        if n_ref < 6 or n_signal < 4:
+        n_ok = mask.sum()
+        if n_ok < 4:
             return _dict_nan_pgd
-        aux = np.zeros(t.size - i_s)
+        aux = np.zeros(t.size)
         displ_2 = np.zeros_like(aux)
         for k in range(2 if only_hor else 3):
-            aux[:] = enu[k][i_s:]
-            aux -= np.nanmedian(enu[k][:i_origin])
+            aux[:] = enu[k]
+            aux -= self._enu_ref[_coord_labels[k]]
             displ_2 += aux*aux
         k_max = np.nanargmax(displ_2)
-        return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[i_s:][k_max])
+        return dict(PGD=np.sqrt(displ_2[k_max]), t_PGD=t[k_max])
 
-    def pgd_timeseries(self, t_origin, tau=10, window=600):
+    def pgd_timeseries(self, t_origin, window=600, ref_val_window=180):
         gd, t = self.ground_displ_timeseries(
-            t_origin, tau=tau, window=window)
+            t_origin, window=window, ref_val_window=ref_val_window)
         if gd is None:
             return None, None
         if np.isfinite(gd).sum() < 0.75*gd.size:
             return None, None
         return np.maximum.accumulate(np.nan_to_num(gd)), t
 
-    def ground_displ_timeseries(self, t_origin, tau=10, window=600):
+    def ground_displ_timeseries(self, t_origin, window=600, ref_val_window=180,
+                                min_data_points=4):
         if np.isnan(self.t_last):
             return None, None
-        k_tau = int(round(tau*self.s_rate))
+        if not self._ref_values_are_set:
+            self._eval_ref_values(t_origin, window=ref_val_window,
+                                  min_data_points=min_data_points)
         coords, t = self.interval(
-            t_origin - tau, min(self.t_last, t_origin+window), get_time=True)
+            t_origin, min(self.t_last, t_origin+window), get_time=True)
         aux = np.zeros(coords[0].size)
         for a in range(3):
-            x = coords[a] - coords[a][:k_tau].mean()
+            x = coords[a] - self._enu_ref[_coord_labels[a]]
             aux += x*x
         return np.sqrt(aux), t
 
