@@ -22,7 +22,7 @@ class NetworkTimeSeries:
         self._codes = []
         self._code2index = dict()
         self._names = []
-        self.half_window_offset = parse_time(half_window_offset)
+        self.window_offset = parse_time(half_window_offset)
         self.ts_length = parse_time(length)
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
@@ -32,7 +32,7 @@ class NetworkTimeSeries:
         self._lon_ref = np.nan
 
     def half_win_offset(self):
-        return self.half_window_offset
+        return self.window_offset
 
     def available_window(self):
         if self.n_sta == 0:
@@ -51,10 +51,10 @@ class NetworkTimeSeries:
                 t_oldest = ts.t_oldest
         return (t_min, t_max), t_oldest
 
-    def set_window_offset(self, half_window_offset):
-        self.half_window_offset = half_window_offset
+    def set_window_offset(self, window_offset):
+        self.window_offset = window_offset
         for ts in self._station_ts:
-            ts.set_window_offset(half_window_offset)
+            ts.set_window_offset(window_offset)
 
     def station_timeseries(self, sta):
         """Buffer of the a station (GnssTimeSeriesSimple)
@@ -78,7 +78,7 @@ class NetworkTimeSeries:
         self._ref_coords.append(ref_coords)
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
-            half_window_offset=self.half_window_offset))
+            window_offset=self.window_offset))
         if ref_coords is not None:
             lat = ref_coords[1]
             if lat < self._lat_range[0]:
@@ -213,39 +213,55 @@ class NetworkTimeSeries:
     def get_indices(self, codes):
         return [self._code2index[code] for code in codes]
 
-    def eval_pgd(self, t_origin, t_s_dict=None, t_tol=120, only_hor=False):
+    def eval_ref_values(self, t_origin, window_ref=180,
+                        force_eval_ref_values=False, **kwargs_mean):
+        for ts in self._station_ts:
+            ts.eval_ref_values(t_origin, window_ref=window_ref,
+                               force_eval_ref_values=force_eval_ref_values,
+                               **kwargs_mean)
+
+    def eval_pgd(self, t_origin, t_s_dict=None, t_tol=120, only_hor=False,
+                 window_ref=180, force_eval_ref_values=False,
+                 **kwargs_mean):
         pgd_dict = dict()
         if t_s_dict is None:
             t_s_dict = dict()
         for code in self._codes:
             pgd_dict[code] = self.eval_pgd_at_station(
-                code, t_origin, t_s=t_s_dict.get(code),
-                t_tol=t_tol, only_hor=only_hor)
+                code, t_origin, t_s=t_s_dict.get(code), t_tol=t_tol,
+                only_hor=only_hor, window_ref=window_ref,
+                force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return pgd_dict
 
-    def eval_offset(self, t_eval_dict, conf_outliers=3, check_finite=True):
+    def eval_offset(self, t_eval_dict, t_origin=None, window_ref=180,
+                    force_eval_ref_values=False, **kwargs_mean):
         offset_dict = dict()
         for code in self._codes:
             offset_dict[code] = self.eval_offset_at_station(
-                code, t_eval_dict.get(code),
-                conf_outliers=conf_outliers, check_finite=check_finite)
+                code, t_eval_dict.get(code), t_origin=t_origin,
+                window_refs=window_ref,
+                force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return offset_dict
 
     def eval_pgd_at_station(self, code, t_origin, t_s=None, t_tol=None,
-                            only_hor=False):
+                            only_hor=False,  window_ref=180,
+                            force_eval_ref_values=False, **kwargs_mean):
         return self._station_ts[self._code2index[code]].eval_pgd(
-            t_origin, t_s=t_s, t_tol=t_tol, only_hor=only_hor)
+            t_origin, t_s=t_s, t_tol=t_tol, only_hor=only_hor,
+            window_ref=window_ref, force_eval_ref_values=force_eval_ref_values,
+            **kwargs_mean)
 
-    def eval_offset_at_station(self, code, t_eval,
-                               conf_outliers=3, check_finite=True):
+    def eval_offset_at_station(self, code, t_eval, t_origin=None,
+                               window_ref=180, force_eval_ref_values=False,
+                               **kwargs_mean):
         return self._station_ts[self._code2index[code]].eval_offset(
-            t_eval=t_eval, conf_outliers=conf_outliers,
-            check_finite=check_finite)
+            t_eval=t_eval, t_origin=t_origin, window_ref=window_ref,
+            force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
 
     def eval_pgd_and_mw(self, hipocenter_coords, t_origin, t_s_dict=None,
-                        t_tol=120, only_hor=False):
+                        t_tol=120, only_hor=False, **kwargs_ref_value):
         aux = self.eval_pgd(t_origin, t_s_dict=t_s_dict, t_tol=t_tol,
-                            only_hor=only_hor)
+                            only_hor=only_hor, **kwargs_ref_value)
         return self.mw_from_pgd(
             hipocenter_coords,
             {code: value['PGD'] for code, value in aux.items()})
@@ -277,10 +293,10 @@ class NetworkTimeSeries:
         return distance_dict
 
     def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=3.,
-                               sta_list=None, tau=10, max_distance=800,
-                               window=300):
-        pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list, tau=tau,
-                                       window=window)
+                               sta_list=None, max_distance=800,
+                               window=300, **kwargs_ref_value):
+        pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list,
+                                       window=window, **kwargs_ref_value)
 
         distance_dict = self._distance_dict(hipocenter_coords,
                                             max_distance=max_distance)
@@ -328,23 +344,25 @@ class NetworkTimeSeries:
         return mw, t_mw
 
     def pgd_timeseries(self, t_origin, sta_list=None,
-                       tau=10, window=300):
+                       window=300, **kwargs_ref_value):
         if sta_list is None:
             sta_list = self.station_codes()
         pgd_dict = dict()
         for code in sta_list:
             pgd_dict[code] = self.station_timeseries(
-                code).pgd_timeseries(t_origin, tau=tau, window=window)
+                code).pgd_timeseries(t_origin, window=window,
+                                     **kwargs_ref_value)
         return pgd_dict
 
     def ground_displ_timeseries(self, t_origin, sta_list=None,
-                                tau=10, window=300):
+                                window=300, **kwargs_ref_value):
         if sta_list is None:
             sta_list = self.station_codes()
         ground_displ_dict = dict()
         for code in sta_list:
             ground_displ_dict[code] = self.station_timeseries(
-                code).ground_displ_timeseries(t_origin, tau=tau, window=window)
+                code).ground_displ_timeseries(t_origin, window=window,
+                                              **kwargs_ref_value)
         return ground_displ_dict
 
     def set_win_offset(self, win_offset):
