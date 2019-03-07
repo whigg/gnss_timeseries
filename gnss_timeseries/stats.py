@@ -133,6 +133,11 @@ def eval_no_outliers(func, x, confidence=3, check_finite=False,
     :return: evaluation of the function at the vector without outliers,
         (is-outlier mask).
     """
+    if x.size == 0:
+        if get_mask_ok:
+            return np.nan, np.zeros(0, dtype=bool)
+        else:
+            return np.nan
     mask = is_not_outlier(x, confidence=confidence, check_finite=check_finite)
     if get_mask_ok:
         return func(x[mask]), mask

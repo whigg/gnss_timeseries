@@ -1,7 +1,7 @@
 import numpy as np
 from timeseries.timeseries import LayeredTimeSeries
 from .aux import (sec_min, sec_hour, sec_day, sec_month, sec_year,
-                  default_win_ref)
+                  default_win_ref, default_win_pgd)
 from .stats import eval_no_outliers
 
 _dict_time_in_sec = {'s': 1, 'm': sec_min, 'h': sec_hour, 'D': sec_day,
@@ -64,8 +64,8 @@ class GnssTimeSeries(LayeredTimeSeries):
         # coseismic offset
         self.win_offset = parse_time(window_offset)
         self._ref_values_are_set = False
-        self._enu_ref = dict()
-        self._var_enu_ref = dict()
+        self._enu_ref = {c: np.nan for c in _coord_labels}
+        self._var_enu_ref = {c: np.nan for c in _coord_labels}
         self._t_origin = -1
         self._win_ref_values = -1
 
@@ -73,7 +73,8 @@ class GnssTimeSeries(LayeredTimeSeries):
         self.win_offset = parse_time(window_offset)
 
     def ref_values(self):
-        return tuple(self._enu_ref[c] for c in _coord_labels)
+        return (tuple(self._enu_ref[c] for c in _coord_labels),
+                self._win_ref_values, self._t_origin)
 
     def get_around(self, t, window, layers=coord_layers,
                    get_time=False, as_dict=False):
@@ -206,15 +207,15 @@ class GnssTimeSeries(LayeredTimeSeries):
             offset_dict['post_mean_' + c] = enu_mean[c]
         return offset_dict
 
-    def eval_pgd(self, t_origin, t_s=None, t_tol=180, only_hor=True,
-                 window_ref=default_win_ref, force_eval_ref_values=False,
-                 **kwargs_mean):
+    def eval_pgd(self, t_origin, t_s=None, window_pgd=default_win_pgd,
+                 only_hor=True, window_ref=default_win_ref,
+                 force_eval_ref_values=False, **kwargs_mean):
         """Computes the Peak Ground Displacement (PGD) and the time of its
         occurrence.
 
         :param t_origin: origin time of earthquake.
         :param t_s: reference time of the arrival of S-waves
-        :param t_tol: maximum delay between t_s and the PGD.
+        :param window_pgd: maximum delay between t_s and the PGD.
         :param only_hor: only horizontal coordinates?
         :param window_ref: window for evaluation of reference values
         :param force_eval_ref_values: force evaluation of reference values?
@@ -227,10 +228,9 @@ class GnssTimeSeries(LayeredTimeSeries):
             return _dict_nan_pgd
         if t_s is None:
             t_s = t_origin
-            t_tol = 600
-        t_end = t_s + t_tol
+        t_end = t_s + window_pgd
 
-        enu, t = self.interval(t_origin, t_end,
+        enu, t = self.interval(t_s, t_end,
                                get_time=True, check_input=True)
         if t.size < kwargs_mean.get('min_data_points', 4):
             return _dict_nan_pgd

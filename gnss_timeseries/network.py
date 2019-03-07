@@ -3,7 +3,7 @@ import numpy as np
 from geoproj.proj import TransverseMercator
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
                                              parse_frequency)
-from gnss_timeseries.aux import default_win_ref
+from gnss_timeseries.aux import default_win_ref, default_win_pgd
 
 
 class NetworkTimeSeries:
@@ -182,6 +182,9 @@ class NetworkTimeSeries:
             return self._ref_coords
         return self._ref_coords[self._sta2index(code)]
 
+    def ref_values_at(self, sta_code):
+        return self.station_timeseries(sta_code).ref_values()
+
     def ref_coord_vectors(self, stations=None):
         if stations is None:
             return (np.array([x[0] for x in self._ref_coords]),
@@ -219,15 +222,15 @@ class NetworkTimeSeries:
                                force_eval_ref_values=force_eval_ref_values,
                                **kwargs_mean)
 
-    def eval_pgd(self, t_origin, t_s_dict=None, t_tol=120, only_hor=False,
-                 window_ref=default_win_ref, force_eval_ref_values=False,
-                 **kwargs_mean):
+    def eval_pgd(self, t_origin, t_s_dict=None, window_pgd=default_win_pgd,
+                 only_hor=False, window_ref=default_win_ref,
+                 force_eval_ref_values=False, **kwargs_mean):
         pgd_dict = dict()
         if t_s_dict is None:
             t_s_dict = dict()
         for code in self._codes:
             pgd_dict[code] = self.eval_pgd_at_station(
-                code, t_origin, t_s=t_s_dict.get(code), t_tol=t_tol,
+                code, t_origin, t_s=t_s_dict.get(code), window_pgd=window_pgd,
                 only_hor=only_hor, window_ref=window_ref,
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return pgd_dict
@@ -243,11 +246,12 @@ class NetworkTimeSeries:
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return offset_dict
 
-    def eval_pgd_at_station(self, code, t_origin, t_s=None, t_tol=None,
-                            only_hor=False,  window_ref=default_win_ref,
+    def eval_pgd_at_station(self, code, t_origin, t_s=None,
+                            window_pgd=default_win_pgd,
+                            only_hor=False, window_ref=default_win_ref,
                             force_eval_ref_values=False, **kwargs_mean):
         return self._station_ts[self._code2index[code]].eval_pgd(
-            t_origin, t_s=t_s, t_tol=t_tol, only_hor=only_hor,
+            t_origin, t_s=t_s, window_pgd=window_pgd, only_hor=only_hor,
             window_ref=window_ref, force_eval_ref_values=force_eval_ref_values,
             **kwargs_mean)
 
@@ -259,8 +263,9 @@ class NetworkTimeSeries:
             force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
 
     def eval_pgd_and_mw(self, hipocenter_coords, t_origin, t_s_dict=None,
-                        t_tol=120, only_hor=False, **kwargs_ref_value):
-        aux = self.eval_pgd(t_origin, t_s_dict=t_s_dict, t_tol=t_tol,
+                        window_pgd=default_win_pgd, only_hor=False,
+                        **kwargs_ref_value):
+        aux = self.eval_pgd(t_origin, t_s_dict=t_s_dict, window_pgd=window_pgd,
                             only_hor=only_hor, **kwargs_ref_value)
         return self.mw_from_pgd(
             hipocenter_coords,
