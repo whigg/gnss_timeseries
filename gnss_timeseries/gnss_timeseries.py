@@ -76,6 +76,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         return (tuple(self._enu_ref[c] for c in _coord_labels),
                 self._win_ref_values, self._t_origin)
 
+    def ref_values_are_set(self):
+        return self._ref_values_are_set
+
     def get_around(self, t, window, layers=coord_layers,
                    get_time=False, as_dict=False):
         """Gets one or more layers in a window around a point. By default, it

@@ -185,6 +185,9 @@ class NetworkTimeSeries:
     def ref_values_at(self, sta_code):
         return self.station_timeseries(sta_code).ref_values()
 
+    def ref_values_are_set_at(self, sta_code):
+        return self.station_timeseries(sta_code).ref_values_are_set()
+
     def ref_coord_vectors(self, stations=None):
         if stations is None:
             return (np.array([x[0] for x in self._ref_coords]),
