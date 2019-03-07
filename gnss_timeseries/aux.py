@@ -4,6 +4,7 @@ sec_hour = 3600  # 1 hour in seconds
 sec_day = 86400  # 1 day in seconds
 sec_month = 2629800  # 1 month in seconds (30.4375 days)
 sec_year = 31557600  # 1 year in seconds (365.25 days)
+default_win_ref = 600
 
 
 def log_interpolator(x, y):

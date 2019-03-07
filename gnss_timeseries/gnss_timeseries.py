@@ -1,6 +1,7 @@
 import numpy as np
 from timeseries.timeseries import LayeredTimeSeries
-from .aux import sec_min, sec_hour, sec_day, sec_month, sec_year
+from .aux import (sec_min, sec_hour, sec_day, sec_month, sec_year,
+                  default_win_ref)
 from .stats import eval_no_outliers
 
 _dict_time_in_sec = {'s': 1, 'm': sec_min, 'h': sec_hour, 'D': sec_day,
@@ -126,13 +127,14 @@ class GnssTimeSeries(LayeredTimeSeries):
                 var_enu_mean[c] = aux.sum()/(n_ok*n_ok)
         return enu_mean, var_enu_mean
 
-    def eval_ref_values(self, t_origin, window_ref=180,
+    def eval_ref_values(self, t_origin, window_ref=default_win_ref,
                         force_eval_ref_values=False, **kwargs_mean):
         """Computes reference values of coordinates as a mean in a window
         before an event. Removes outliers.
 
         :param t_origin: approximate origin time
         :param window_ref: length of the time window
+        :param force_eval_ref_values: force evaluation of reference values?
         :param kwargs_mean: key-worded arguments. See the method
             :py:func:`_eval_mean_values`
         """
@@ -144,9 +146,17 @@ class GnssTimeSeries(LayeredTimeSeries):
         self._var_enu_ref.update(var_enu_mean)
         self._t_origin = t_origin
         self._win_ref_values = window_ref
-        self._ref_values_are_set = True
+        # all 3 reference values must be non-NaN
+        self._ref_values_are_set = sum(map(np.isnan, enu_mean.values())) == 0
 
-    def eval_offset(self, t_eval, t_origin=None, window_ref=180,
+    def _clear_ref_values(self):
+        self._enu_ref.clear()
+        self._var_enu_ref.clear()
+        self._t_origin = -1
+        self._win_ref_values = -1
+        self._ref_values_are_set = False
+
+    def eval_offset(self, t_eval, t_origin=None, window_ref=default_win_ref,
                     force_eval_ref_values=False, **kwargs_mean):
         """Computes the Static Offset given a reference time
 
@@ -197,7 +207,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         return offset_dict
 
     def eval_pgd(self, t_origin, t_s=None, t_tol=180, only_hor=True,
-                 window_ref=180, force_eval_ref_values=False,
+                 window_ref=default_win_ref, force_eval_ref_values=False,
                  **kwargs_mean):
         """Computes the Peak Ground Displacement (PGD) and the time of its
         occurrence.
@@ -272,6 +282,10 @@ class GnssTimeSeries(LayeredTimeSeries):
         :return:
         """
         pass
+
+    def clear(self):
+        self._clear_ref_values()
+        super().clear()
 
 
 def index_eval_factory(t):

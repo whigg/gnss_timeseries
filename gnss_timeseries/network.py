@@ -1,8 +1,9 @@
 from math import sqrt, isfinite
 import numpy as np
+from geoproj.proj import TransverseMercator
 from gnss_timeseries.gnss_timeseries import (GnssTimeSeries, parse_time,
                                              parse_frequency)
-from geoproj.proj import TransverseMercator
+from gnss_timeseries.aux import default_win_ref
 
 
 class NetworkTimeSeries:
@@ -15,14 +16,14 @@ class NetworkTimeSeries:
     """
 
     def __init__(self, length='1h', sampling_rate='1/s',
-                 half_window_offset='7m', **kwargs_other):
+                 window_offset='7m', **kwargs_other):
         self.n_sta = 0
         self._station_ts = []
         self._ref_coords = []
         self._codes = []
         self._code2index = dict()
         self._names = []
-        self.window_offset = parse_time(half_window_offset)
+        self.window_offset = parse_time(window_offset)
         self.ts_length = parse_time(length)
         self.s_rate = parse_frequency(sampling_rate)
         self._kwargs_other = kwargs_other
@@ -30,9 +31,6 @@ class NetworkTimeSeries:
         self._lat_range = np.array([100., -100.])
         self._lon_range = np.array([370., -200.])
         self._lon_ref = np.nan
-
-    def half_win_offset(self):
-        return self.window_offset
 
     def available_window(self):
         if self.n_sta == 0:
@@ -75,7 +73,8 @@ class NetworkTimeSeries:
         self.n_sta += 1
         self._codes.append(code)
         self._names.append(name)
-        self._ref_coords.append(ref_coords)
+        self._ref_coords.append(
+            (np.nan, np.nan) if ref_coords is None else ref_coords)
         self._station_ts.append(GnssTimeSeries(
             length=self.ts_length, sampling_rate=self.s_rate,
             window_offset=self.window_offset))
@@ -213,7 +212,7 @@ class NetworkTimeSeries:
     def get_indices(self, codes):
         return [self._code2index[code] for code in codes]
 
-    def eval_ref_values(self, t_origin, window_ref=180,
+    def eval_ref_values(self, t_origin, window_ref=default_win_ref,
                         force_eval_ref_values=False, **kwargs_mean):
         for ts in self._station_ts:
             ts.eval_ref_values(t_origin, window_ref=window_ref,
@@ -221,7 +220,7 @@ class NetworkTimeSeries:
                                **kwargs_mean)
 
     def eval_pgd(self, t_origin, t_s_dict=None, t_tol=120, only_hor=False,
-                 window_ref=180, force_eval_ref_values=False,
+                 window_ref=default_win_ref, force_eval_ref_values=False,
                  **kwargs_mean):
         pgd_dict = dict()
         if t_s_dict is None:
@@ -233,18 +232,19 @@ class NetworkTimeSeries:
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return pgd_dict
 
-    def eval_offset(self, t_eval_dict, t_origin=None, window_ref=180,
-                    force_eval_ref_values=False, **kwargs_mean):
+    def eval_offset(self, t_eval_dict, t_origin=None,
+                    window_ref=default_win_ref, force_eval_ref_values=False,
+                    **kwargs_mean):
         offset_dict = dict()
         for code in self._codes:
             offset_dict[code] = self.eval_offset_at_station(
                 code, t_eval_dict.get(code), t_origin=t_origin,
-                window_refs=window_ref,
+                window_ref=window_ref,
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return offset_dict
 
     def eval_pgd_at_station(self, code, t_origin, t_s=None, t_tol=None,
-                            only_hor=False,  window_ref=180,
+                            only_hor=False,  window_ref=default_win_ref,
                             force_eval_ref_values=False, **kwargs_mean):
         return self._station_ts[self._code2index[code]].eval_pgd(
             t_origin, t_s=t_s, t_tol=t_tol, only_hor=only_hor,
@@ -252,8 +252,8 @@ class NetworkTimeSeries:
             **kwargs_mean)
 
     def eval_offset_at_station(self, code, t_eval, t_origin=None,
-                               window_ref=180, force_eval_ref_values=False,
-                               **kwargs_mean):
+                               window_ref=default_win_ref,
+                               force_eval_ref_values=False, **kwargs_mean):
         return self._station_ts[self._code2index[code]].eval_offset(
             t_eval=t_eval, t_origin=t_origin, window_ref=window_ref,
             force_eval_ref_values=force_eval_ref_values, **kwargs_mean)

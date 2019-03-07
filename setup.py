@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='gnss_timeseries',
-    version='19.01',  # YYYYY.MM = year and month; b1 = beta-1 release
+    version='19.02',  # YYYYY.MM = year and month; b1 = beta-1 release
     description='Time series of a set of variables and its statistics. Ring '
                 'buffer of a group variables represented as numpy arrays.',
     long_description=long_description,  # [1]
