@@ -2,7 +2,6 @@
 dist/*
 test_data/*
 gnss_timeseries/__pycache__/*
-gnss_timeseries/t_student_table
 gnss_timeseries.egg-info/*
 tests/*
 *.tar.gz
