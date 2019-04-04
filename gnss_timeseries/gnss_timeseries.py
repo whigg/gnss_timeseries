@@ -52,7 +52,7 @@ class GnssTimeSeries(LayeredTimeSeries):
             in hertz or a string like '1/s', '3/s', '10/m'.
         :param window_offset: length of window where the offset is computed
         :type length: str or float
-        :type sampling_rate: str
+        :type sampling_rate: str or float
         :type window_offset: str or float
         """
         layers_dict = {'coords': _coord_labels,
@@ -254,8 +254,8 @@ class GnssTimeSeries(LayeredTimeSeries):
         except ValueError:
             return _dict_nan_pgd
 
-    def pgd_timeseries(self, t_origin, window=600, **kwargs_ref_values):
-        gd, t = self.ground_displ_timeseries(t_origin, window=window,
+    def pgd_timeseries(self, t_origin=None, window=600, **kwargs_ref_values):
+        gd, t = self.ground_displ_timeseries(t_origin=t_origin, window=window,
                                              **kwargs_ref_values)
         if gd is None:
             return None, None
@@ -263,11 +263,13 @@ class GnssTimeSeries(LayeredTimeSeries):
             return None, None
         return np.maximum.accumulate(np.nan_to_num(gd)), t
 
-    def ground_displ_timeseries(self, t_origin, window=600,
+    def ground_displ_timeseries(self, t_origin=None, window=600,
                                 **kwargs_ref_values):
         if np.isnan(self.t_last):
             return None, None
         self.eval_ref_values(t_origin, **kwargs_ref_values)
+        if t_origin is None:
+            t_origin = self._t_origin
         coords, t = self.interval(
             t_origin, min(self.t_last, t_origin+window), get_time=True)
         aux = np.zeros(coords[0].size)

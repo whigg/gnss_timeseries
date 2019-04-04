@@ -29,3 +29,15 @@ def log_interpolator(x, y):
         return np.exp(ln_y[index]*(1-theta) + ln_y[index+1]*theta)
 
     return log_interp
+
+
+def are_close(x, y, tol=1.e-10):
+    return abs(x-y) < tol
+
+
+def are_close_rel(x, y, tol=1.e-10):
+    return abs(x-y) < tol*max(abs(x), abs(y))
+
+
+def are_close_arr(x, y, tol=1.e-10):
+    return np.abs(x-y).max() < tol
