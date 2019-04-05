@@ -282,7 +282,7 @@ class NetworkTimeSeries:
             try:
                 pgd = pgd_dict[code]
                 if isfinite(pgd):
-                    results_dict[code] = (mw_crowel(100 * pgd, r), r)
+                    results_dict[code] = (mw_melgar(100*pgd, r), r)
             except KeyError:
                 pass
         return results_dict
@@ -341,7 +341,7 @@ class NetworkTimeSeries:
             if t_m > t[-1]:
                 continue
             k = np.argmin(np.abs(t-t_m))
-            aux = mw_crowel(100 * pgd[k:], distance_dict[code])
+            aux = mw_melgar(100*pgd[k:], distance_dict[code])
             i1 = np.argmin(np.abs(t_mw - (t[k] - t_origin)))
             i2 = i1 + aux.size
             mw[i1:i2] += aux
@@ -379,7 +379,7 @@ class NetworkTimeSeries:
             ts.win_offset = win
 
 
-def mw_crowel(pgd_cm, r_km):
+def mw_crowel(pgd, r_hypo):
     r"""Computes an estimate of the moment magnitude of an earthquake as a
     given the peak ground displacement (PGD) and the hypocentral distance,
     as proposed by Crowel *et. al* (2013)
@@ -396,14 +396,14 @@ def mw_crowel(pgd_cm, r_km):
     .. Article:  https://agupubs.onlinelibrary.wiley.com/doi/full/
         10.1002/2013GL058391
 
-    :param pgd_cm: peak ground displacement :math:`\text{PGD}` in cm
-    :param r_km: distance to hypocenter in km :math:`R`.
+    :param pgd: peak ground displacement :math:`\text{PGD}` in cm
+    :param r_hypo: distance to hypocenter in km :math:`R`.
     :return: estimate of the moment magnitude :math:`M_W`
     """
-    return (np.log(pgd_cm) + 5.013)/(1.219 - 0.178*np.log(r_km))
+    return (np.log(pgd) + 5.013)/(1.219 - 0.178*np.log(r_hypo))
 
 
-def mw_melgar(pgd_cm, r_km):
+def mw_melgar(pgd, r_hypo):
     r"""Computes an estimate of the moment magnitude of an earthquake as a
     given the peak ground displacement (PGD) and the hypocentral distance,
     as proposed by D. Melgar *et. al* (2015).
@@ -421,8 +421,9 @@ def mw_melgar(pgd_cm, r_km):
     .. Article:  https://agupubs.onlinelibrary.wiley.com/doi/full/
         10.1002/2013GL058391
 
-    :param pgd_cm: peak ground displacement :math:`\text{PGD}` in cm
-    :param r_km: distance to hypocenter in km :math:`R`.
+    :param pgd: peak ground displacement :math:`\text{PGD}` in cm
+    :param r_hypo: distance to hypocenter in km :math:`R`.
     :return: estimate of the moment magnitude :math:`M_W`
     """
-    return (np.log(pgd_cm) + 4.434)/(1.047 - 0.138*np.log(r_km))
+    print(pgd, r_hypo)
+    return (np.log10(pgd) + 4.434)/(1.047 - 0.138*np.log10(r_hypo))
