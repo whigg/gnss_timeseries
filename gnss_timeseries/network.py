@@ -282,7 +282,7 @@ class NetworkTimeSeries:
             try:
                 pgd = pgd_dict[code]
                 if isfinite(pgd):
-                    results_dict[code] = (mw_melgar(100*pgd, r), r)
+                    results_dict[code] = (mw_crowel(100 * pgd, r), r)
             except KeyError:
                 pass
         return results_dict
@@ -341,7 +341,7 @@ class NetworkTimeSeries:
             if t_m > t[-1]:
                 continue
             k = np.argmin(np.abs(t-t_m))
-            aux = mw_melgar(100*pgd[k:], distance_dict[code])
+            aux = mw_crowel(100 * pgd[k:], distance_dict[code])
             i1 = np.argmin(np.abs(t_mw - (t[k] - t_origin)))
             i2 = i1 + aux.size
             mw[i1:i2] += aux
@@ -379,11 +379,50 @@ class NetworkTimeSeries:
             ts.win_offset = win
 
 
-def mw_melgar(pgd_cm, r):
-    """
+def mw_crowel(pgd_cm, r_km):
+    r"""Computes an estimate of the moment magnitude of an earthquake as a
+    given the peak ground displacement (PGD) and the hypocentral distance,
+    as proposed by Crowel *et. al* (2013)
 
-    :param pgd_cm: PGD in cm
-    :param r: distance to hipocenter in km
-    :return:
+    .. math::
+        \log(\text{PGD}) = -5.013 + 1.219\,M_W - 0.178\,M_W \log(R)
+
+    Crowel *et. al* (2013)
+
+    *Earthquake magnitude scaling using seismogeodetic data*
+
+    *Geophys. Res. Lett., 40, 6089–6094*
+
+    .. Article:  https://agupubs.onlinelibrary.wiley.com/doi/full/
+        10.1002/2013GL058391
+
+    :param pgd_cm: peak ground displacement :math:`\text{PGD}` in cm
+    :param r_km: distance to hypocenter in km :math:`R`.
+    :return: estimate of the moment magnitude :math:`M_W`
     """
-    return (np.log10(pgd_cm) + 4.434)/(1.047 - 0.138*np.log10(r))
+    return (np.log(pgd_cm) + 5.013)/(1.219 - 0.178*np.log(r_km))
+
+
+def mw_melgar(pgd_cm, r_km):
+    r"""Computes an estimate of the moment magnitude of an earthquake as a
+    given the peak ground displacement (PGD) and the hypocentral distance,
+    as proposed by D. Melgar *et. al* (2015).
+
+    .. math::
+        \log(\text{PGD}) = -4.434 + 1.047\,M_W - 0.138\,M_W \log(R)
+
+    Melgar *et. al* (2015)
+
+    *Earthquake magnitude calculation without saturation from the scaling of
+    peak ground displacement.*
+
+    *Geophys. Res. Lett., 42, 5197–5205*
+
+    .. Article:  https://agupubs.onlinelibrary.wiley.com/doi/full/
+        10.1002/2013GL058391
+
+    :param pgd_cm: peak ground displacement :math:`\text{PGD}` in cm
+    :param r_km: distance to hypocenter in km :math:`R`.
+    :return: estimate of the moment magnitude :math:`M_W`
+    """
+    return (np.log(pgd_cm) + 4.434)/(1.047 - 0.138*np.log(r_km))

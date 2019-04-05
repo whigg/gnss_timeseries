@@ -34,8 +34,8 @@ t_5eights = t[k_5eigths]
 
 t_aux = (t - t_event)*0.2
 for x in enu:
-    x[k_event:] += np.random.normal(0, 2)*(
-            1 - np.exp(-0.2*t_aux[k_event:])*np.cos(t_aux[k_event:]))
+    x[k_flag:] += np.random.normal(0, 2)*(
+            1 - np.exp(-0.2*t_aux[k_flag:])*np.cos(t_aux[k_flag:]))
     x += 2*np.exp(-0.01*(t-t_5eights)**2)*np.sin(2*t_aux)
 
 k1 = k_event - m_reference
