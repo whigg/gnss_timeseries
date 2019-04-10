@@ -194,7 +194,6 @@ class GnssTimeSeries(LayeredTimeSeries):
             t_origin, window_ref=window_ref,
             force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
 
-
         enu_mean, var_enu_mean = self._eval_mean_values(
             t_eval, t_eval + self.win_offset, **kwargs_mean)
 

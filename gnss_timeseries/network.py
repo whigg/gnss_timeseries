@@ -108,7 +108,7 @@ class NetworkTimeSeries:
             ts.clear()
 
     def station_buffer_is_empty(self, sta_code):
-        return np.isnan(self.station_timeseries(sta_code).t_last)
+        return self.station_timeseries(sta_code).t_last_not_set()
 
     def station_is_available(self, sta_code):
         return sta_code in self._codes
@@ -244,8 +244,8 @@ class NetworkTimeSeries:
         offset_dict = dict()
         for code in self._codes:
             offset_dict[code] = self.eval_offset_at_station(
-                code, t_eval_dict.get(code), t_origin=t_origin,
-                window_ref=window_ref,
+                code, t_eval_dict.get(code),
+                t_origin=t_origin, window_ref=window_ref,
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return offset_dict
 
