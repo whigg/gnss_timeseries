@@ -142,8 +142,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param kwargs_mean: key-worded arguments. See the method
             :py:func:`_eval_mean_values`
         """
-        if self._ref_values_are_set and not force_eval_ref_values:
-            return
+        if (self.t_last_not_set() or
+                (self._ref_values_are_set and not force_eval_ref_values)):
+            return False
         enu_mean, var_enu_mean = self._eval_mean_values(
             t_origin - window_ref, t_origin, **kwargs_mean)
         self._enu_ref.update(enu_mean)
@@ -152,6 +153,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         self._win_ref_values = window_ref
         # all 3 reference values must be non-NaN
         self._ref_values_are_set = sum(map(np.isnan, enu_mean.values())) == 0
+        return True
 
     def _clear_ref_values(self):
         self._enu_ref.clear()
@@ -179,7 +181,7 @@ class GnssTimeSeries(LayeredTimeSeries):
                            win_ref_val=self._win_ref_values,
                            t_offset=t_eval,
                            win_offset=self.win_offset)
-        if np.isnan(t_eval) or np.isnan(self.t_last):
+        if np.isnan(t_eval) or self.t_last_not_set():
             for k in range(3):
                 c = _coord_labels[k]
                 offset_dict[c] = np.nan
@@ -188,9 +190,10 @@ class GnssTimeSeries(LayeredTimeSeries):
                 offset_dict['post_mean_' + c] = np.nan
             return offset_dict
 
-        self.eval_ref_values(t_origin, window_ref=window_ref,
-                             force_eval_ref_values=force_eval_ref_values,
-                             **kwargs_mean)
+        self.eval_ref_values(
+            t_origin, window_ref=window_ref,
+            force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
+
 
         enu_mean, var_enu_mean = self._eval_mean_values(
             t_eval, t_eval + self.win_offset, **kwargs_mean)
@@ -224,10 +227,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param force_eval_ref_values: force evaluation of reference values?
         :return: PGD, time of occurrence of PGD.
         """
-        self.eval_ref_values(t_origin, window_ref=window_ref,
-                             force_eval_ref_values=force_eval_ref_values,
-                             **kwargs_mean)
-        if np.isnan(self.t_last):
+        if not self.eval_ref_values(
+                t_origin, window_ref=window_ref,
+                force_eval_ref_values=force_eval_ref_values, **kwargs_mean):
             return _dict_nan_pgd
         if t_s is None:
             t_s = t_origin
@@ -265,7 +267,7 @@ class GnssTimeSeries(LayeredTimeSeries):
 
     def ground_displ_timeseries(self, t_origin=None, window=600,
                                 **kwargs_ref_values):
-        if np.isnan(self.t_last):
+        if self.t_last_not_set():
             return None, None
         self.eval_ref_values(t_origin, **kwargs_ref_values)
         if t_origin is None:
