@@ -167,7 +167,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         """Computes the Static Offset given a reference time
 
         :param t_eval: reference unix time
-        :param t_origin: origin time. Only used if reference values are
+        :param t_origin: origin time. Only used if reference values are to be
             computed.
         :param window_ref: window for evaluation of reference values
         :param force_eval_ref_values: force evaluation of reference values?

@@ -31,6 +31,10 @@ class NetworkTimeSeries:
         self._lat_range = np.array([100., -100.])
         self._lon_range = np.array([370., -200.])
         self._lon_ref = np.nan
+        # hypocentral parameters
+        self._hypocenter = np.full(3, np.nan)  # lon, lat, depth
+        self._t_origin = 0  # origin time (UTC timestamp)
+        self._distance_dict = dict()
 
     def available_window(self):
         if self.n_sta == 0:
@@ -182,6 +186,12 @@ class NetworkTimeSeries:
             return self._ref_coords
         return self._ref_coords[self._sta2index(code)]
 
+    def hypocenter(self):
+        return self._hypocenter
+
+    def t_origin(self):
+        return self._t_origin
+
     def ref_values_at(self, sta_code):
         return self.station_timeseries(sta_code).ref_values()
 
@@ -218,22 +228,49 @@ class NetworkTimeSeries:
     def get_indices(self, codes):
         return [self._code2index[code] for code in codes]
 
-    def eval_ref_values(self, t_origin, window_ref=default_win_ref,
+    def set_t_origin(self, t_origin):
+        if t_origin is not None:
+            self._t_origin = t_origin
+
+    def set_hypocenter_coords(self, coords, max_distance=800):
+        if not np.any(np.isnan(self._hypocenter)) and max(
+                abs(coords[0] - self._hypocenter[0]),
+                abs(coords[1] - self._hypocenter[1]),
+                0.01*abs(coords[2] - self._hypocenter[2])) < 1.e-5:
+            return
+        self._hypocenter = coords
+        self._tm.reset(coords[0], coords[1])
+        depth_2 = coords[2]*coords[2]
+        for code, ref_coords in zip(self._codes, self._ref_coords):
+            if ref_coords is None:
+                continue
+            x, y = self._tm(*ref_coords)
+            r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
+            if r < max_distance:
+                self._distance_dict[code] = r
+            else:
+                self._distance_dict.pop(code, None)
+
+    def eval_ref_values(self, t_origin=None, window_ref=default_win_ref,
                         force_eval_ref_values=False, **kwargs_mean):
+        self.set_t_origin(t_origin)
         for ts in self._station_ts:
-            ts.eval_ref_values(t_origin, window_ref=window_ref,
+            ts.eval_ref_values(self._t_origin, window_ref=window_ref,
                                force_eval_ref_values=force_eval_ref_values,
                                **kwargs_mean)
 
-    def eval_pgd(self, t_origin, t_s_dict=None, window_pgd=default_win_pgd,
-                 only_hor=False, window_ref=default_win_ref,
-                 force_eval_ref_values=False, **kwargs_mean):
+    def eval_pgd(self, t_origin=None, t_s_dict=None,
+                 window_pgd=default_win_pgd, only_hor=False,
+                 window_ref=default_win_ref, force_eval_ref_values=False,
+                 **kwargs_mean):
+        self.set_t_origin(t_origin)
         pgd_dict = dict()
         if t_s_dict is None:
             t_s_dict = dict()
         for code in self._codes:
             pgd_dict[code] = self.eval_pgd_at_station(
-                code, t_origin, t_s=t_s_dict.get(code), window_pgd=window_pgd,
+                code, self._t_origin, t_s=t_s_dict.get(code),
+                window_pgd=window_pgd,
                 only_hor=only_hor, window_ref=window_ref,
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return pgd_dict
@@ -241,11 +278,12 @@ class NetworkTimeSeries:
     def eval_offset(self, t_eval_dict, t_origin=None,
                     window_ref=default_win_ref, force_eval_ref_values=False,
                     **kwargs_mean):
+        self.set_t_origin(t_origin)
         offset_dict = dict()
         for code in self._codes:
             offset_dict[code] = self.eval_offset_at_station(
                 code, t_eval_dict.get(code),
-                t_origin=t_origin, window_ref=window_ref,
+                t_origin=self._t_origin, window_ref=window_ref,
                 force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
         return offset_dict
 
@@ -265,7 +303,7 @@ class NetworkTimeSeries:
             t_eval=t_eval, t_origin=t_origin, window_ref=window_ref,
             force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
 
-    def eval_pgd_and_mw(self, hipocenter_coords, t_origin, t_s_dict=None,
+    def eval_pgd_and_mw(self, hipocenter_coords, t_origin=None, t_s_dict=None,
                         window_pgd=default_win_pgd, only_hor=False,
                         **kwargs_ref_value):
         aux = self.eval_pgd(t_origin, t_s_dict=t_s_dict, window_pgd=window_pgd,
@@ -274,11 +312,11 @@ class NetworkTimeSeries:
             hipocenter_coords,
             {code: value['PGD'] for code, value in aux.items()})
 
-    def mw_from_pgd(self, hipocenter_coords, pgd_dict, max_distance=800):
-        distance_dict = self._distance_dict(hipocenter_coords,
-                                            max_distance=max_distance)
+    def mw_from_pgd(self, hypocenter_coords, pgd_dict, max_distance=800):
+        self.set_hypocenter_coords(hypocenter_coords,
+                                   max_distance=max_distance)
         results_dict = dict()
-        for code, r in distance_dict.items():
+        for code, r in self._distance_dict.items():
             try:
                 pgd = pgd_dict[code]
                 if isfinite(pgd):
@@ -287,32 +325,18 @@ class NetworkTimeSeries:
                 pass
         return results_dict
 
-    def _distance_dict(self, hipocenter_coords, max_distance=800):
-        self._tm.reset(hipocenter_coords[0], hipocenter_coords[1])
-        depth_2 = hipocenter_coords[2]*hipocenter_coords[2]
-        distance_dict = dict()
-        for code, ref_coords in zip(self._codes, self._ref_coords):
-            if ref_coords is None:
-                continue
-            x, y = self._tm(*ref_coords)
-            r = sqrt(depth_2 + (x*x + y*y)*1.e-6)
-            if r < max_distance:
-                distance_dict[code] = r
-        return distance_dict
-
-    def mw_timeseries_from_pgd(self, hipocenter_coords, t_origin, vel_mask=3.,
+    def mw_timeseries_from_pgd(self, hypocenter_coords, t_origin, vel_mask=3.,
                                sta_list=None, max_distance=800,
                                window=300, **kwargs_ref_value):
         pgd_dict = self.pgd_timeseries(t_origin, sta_list=sta_list,
                                        window=window, **kwargs_ref_value)
-
-        distance_dict = self._distance_dict(hipocenter_coords,
-                                            max_distance=max_distance)
+        self.set_hypocenter_coords(hypocenter_coords,
+                                   max_distance=max_distance)
         # times at which each station is reached by the mask
 
         t_mask = []
         codes = []
-        for code, r in distance_dict.items():
+        for code, r in self._distance_dict.items():
             if pgd_dict[code][0] is None:  # not enough data
                 continue
             t_mask.append(t_origin + r/vel_mask)
@@ -341,7 +365,7 @@ class NetworkTimeSeries:
             if t_m > t[-1]:
                 continue
             k = np.argmin(np.abs(t-t_m))
-            aux = mw_melgar(100*pgd[k:], distance_dict[code])
+            aux = mw_melgar(100*pgd[k:], self._distance_dict[code])
             i1 = np.argmin(np.abs(t_mw - (t[k] - t_origin)))
             i2 = i1 + aux.size
             mw[i1:i2] += aux
