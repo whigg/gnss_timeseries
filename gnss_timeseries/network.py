@@ -332,7 +332,7 @@ class NetworkTimeSeries:
         return results_dict
 
     def mw_timeseries_from_pgd(self, vel_mask=3., sta_list=None, window=300,
-                               **kwargs_ref_value):
+                               max_distance=800, **kwargs_ref_value):
         pgd_dict = self.pgd_timeseries(sta_list=sta_list,
                                        window=window, **kwargs_ref_value)
         # times at which each station is reached by the mask
@@ -340,7 +340,7 @@ class NetworkTimeSeries:
         t_mask = []
         codes = []
         for code, r in self._distance_dict.items():
-            if pgd_dict[code][0] is None:  # not enough data
+            if r > max_distance or pgd_dict[code][0] is None:
                 continue
             t_mask.append(self._t_origin + r/vel_mask)
             codes.append(code)
