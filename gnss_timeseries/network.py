@@ -41,7 +41,7 @@ class NetworkTimeSeries:
 
     def available_window(self):
         if self.n_sta == 0:
-            return (np.nan, np.nan), np.nan
+            return np.nan, np.nan, np.nan
         t_min = np.inf
         t_max = -np.inf
         t_oldest = np.inf
@@ -54,11 +54,11 @@ class NetworkTimeSeries:
                 t_max = aux[1]
             if ts.t_oldest < t_oldest:
                 t_oldest = ts.t_oldest
-        return (t_min, t_max), t_oldest
+        return t_min, t_oldest, t_max
 
     def available_window_contains(self, t):
-        t_range, t_oldest = self.available_window()
-        return t_range[0] < t < t_range[1] and t_oldest < t
+        t_min, t_oldest, t_max = self.available_window()
+        return t_oldest < t < t_max
 
     def set_window_offset(self, window_offset):
         self.window_offset = window_offset
