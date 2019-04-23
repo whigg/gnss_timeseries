@@ -47,11 +47,10 @@ class NetworkTimeSeries:
         t_oldest = np.inf
         for index in range(self.n_sta):
             ts = self._station_ts[index]
-            aux = ts.time_range()
-            if aux[0] < t_min:
-                t_min = aux[0]
-            if aux[1] > t_max:
-                t_max = aux[1]
+            if ts.t_first < t_min:
+                t_min = ts.t_first
+            if ts.t_last > t_max:
+                t_max = ts.t_last
             if ts.t_oldest < t_oldest:
                 t_oldest = ts.t_oldest
         return t_min, t_oldest, t_max
@@ -119,7 +118,7 @@ class NetworkTimeSeries:
             ts.clear()
 
     def station_buffer_is_empty(self, sta_code):
-        return self.station_timeseries(sta_code).t_last_not_set()
+        return self.station_timeseries(sta_code).cleared
 
     def station_is_available(self, sta_code):
         return sta_code in self._codes
