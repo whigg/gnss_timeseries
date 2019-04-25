@@ -35,7 +35,7 @@ class NetworkTimeSeries:
         self._lon_ref = np.nan
         # hypocentral parameters
         self._hypocenter = np.full(3, np.nan)  # lon, lat, depth
-        self._t_origin = 0  # origin time (UTC timestamp)
+        self._t_origin = np.nan  # origin time (UTC timestamp)
         self._distance_dict = dict()
         self._max_distance = np.nan
 
