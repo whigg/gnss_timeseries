@@ -177,22 +177,21 @@ class GnssTimeSeries(LayeredTimeSeries):
         .. warning::
             The reference values must be computed beforehand
         """
-        offset_dict = dict(t_origin=self._t_origin,
-                           win_ref_val=self._win_ref_values,
-                           t_offset=t_eval,
-                           win_offset=self.win_offset)
-        if np.isnan(t_eval) or self.cleared:
-            for k in range(3):
-                c = _coord_labels[k]
-                offset_dict[c] = np.nan
-                offset_dict['std_' + c] = np.nan
-                offset_dict['ref_val_' + c] = np.nan
-                offset_dict['post_mean_' + c] = np.nan
-            return offset_dict
 
         self.eval_ref_values(
             t_origin, window_ref=window_ref,
             force_eval_ref_values=force_eval_ref_values, **kwargs_mean)
+
+        offset_dict = dict(win_ref_val=self._win_ref_values,
+                           t_offset=t_eval,
+                           win_offset=self.win_offset,
+                           t_origin=self._t_origin)
+
+        if np.isnan(t_eval) or self.cleared:
+            for k in range(3):
+                c = _coord_labels[k]
+                _offset_dict_set_nan(offset_dict, c)
+            return offset_dict
 
         enu_mean, var_enu_mean = self._eval_mean_values(
             t_eval, t_eval + self.win_offset, **kwargs_mean)
@@ -200,10 +199,7 @@ class GnssTimeSeries(LayeredTimeSeries):
         for k in range(3):
             c = _coord_labels[k]
             if np.isnan(enu_mean[c]):
-                offset_dict[c] = np.nan
-                offset_dict['std_' + c] = np.nan
-                offset_dict['ref_val_' + c] = np.nan
-                offset_dict['post_mean_' + c] = np.nan
+                _offset_dict_set_nan(offset_dict, c)
                 continue
             offset_dict[c] = enu_mean[c] - self._enu_ref[c]
             offset_dict['std_' + c] = 0.5*np.sqrt(self._var_enu_ref[c] +
@@ -226,14 +222,12 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param force_eval_ref_values: force evaluation of reference values?
         :return: PGD, time of occurrence of PGD.
         """
-        if not self.eval_ref_values(
-                t_origin, window_ref=window_ref,
-                force_eval_ref_values=force_eval_ref_values, **kwargs_mean):
-            return _dict_nan_pgd
+        self.eval_ref_values(t_origin, window_ref=window_ref,
+                             force_eval_ref_values=force_eval_ref_values,
+                             **kwargs_mean)
         if t_s is None:
-            t_s = t_origin
+            t_s = self._t_origin
         t_end = t_s + window_pgd
-
         enu, t = self.interval(t_s, t_end,
                                get_time=True, check_input=True)
         if t.size < kwargs_mean.get('min_data_points', 4):
@@ -301,3 +295,10 @@ def index_eval_factory(t):
         return int(round(aux*(tau - t[0])))
 
     return index_eval
+
+
+def _offset_dict_set_nan(offset_dict, coord):
+    offset_dict[coord] = np.nan
+    offset_dict['std_' + coord] = np.nan
+    offset_dict['ref_val_' + coord] = np.nan
+    offset_dict['post_mean_' + coord] = np.nan
