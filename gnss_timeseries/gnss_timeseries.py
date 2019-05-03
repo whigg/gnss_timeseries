@@ -222,6 +222,9 @@ class GnssTimeSeries(LayeredTimeSeries):
         :param force_eval_ref_values: force evaluation of reference values?
         :return: PGD, time of occurrence of PGD.
         """
+        if self.cleared:
+            return _dict_nan_pgd
+
         self.eval_ref_values(t_origin, window_ref=window_ref,
                              force_eval_ref_values=force_eval_ref_values,
                              **kwargs_mean)
