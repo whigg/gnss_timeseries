@@ -246,12 +246,14 @@ class NetworkTimeSeries:
         if t_origin is not None:
             self._t_origin = t_origin
 
-    def set_hypocenter_coords(self, coords, max_distance=default_max_distance):
+    def set_hypocenter_coords(self, coords, max_distance=None):
         if coords is None or not np.any(np.isnan(self._hypocenter)) and max(
                 abs(coords[0] - self._hypocenter[0]),
                 abs(coords[1] - self._hypocenter[1]),
                 0.01*abs(coords[2] - self._hypocenter[2])) < 1.e-5:
             return
+        if max_distance is None:
+            max_distance = default_max_distance
         self._max_distance = max_distance
         self._hypocenter = coords
         self._tm.reset(coords[0], coords[1])
@@ -331,14 +333,17 @@ class NetworkTimeSeries:
         return results_dict
 
     def mw_timeseries_from_pgd(self, vel_mask=3., sta_list=None, window=300,
-                               max_distance=800, **kwargs_ref_value):
+                               max_distance=None, **kwargs_ref_value):
         pgd_dict = self.pgd_timeseries(sta_list=sta_list,
                                        window=window, **kwargs_ref_value)
         # times at which each station is reached by the mask
 
         t_mask = []
         codes = []
+        if max_distance is None:
+            max_distance = default_max_distance
         for code, r in self._distance_dict.items():
+            print(code, r)
             if r > max_distance or pgd_dict[code][0] is None:
                 continue
             t_mask.append(self._t_origin + r/vel_mask)
