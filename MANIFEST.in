@@ -1,4 +1,4 @@
-# Include the license and reame files
+# Include the license and readme files
 include LICENSE.txt
 include README.rst
 include requirements.txt
