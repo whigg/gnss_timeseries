@@ -20,7 +20,7 @@ setup(
     author='Francisco del Campo R.',
     author_email='fdelcampo@csn.uchile.cl',
     license='MIT',  # [2]
-    python_requires='>=3.4, !=3.7.*',
+    python_requires='>=3.5, !=3.7.*',
     install_requires=['numpy',
                       'matplotlib',
                       'scipy',
@@ -52,7 +52,6 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 3 or both.
         'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
         ],
