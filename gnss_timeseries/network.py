@@ -38,8 +38,6 @@ class NetworkTimeSeries:
         self._t_origin = np.nan  # origin time (UTC timestamp)
         self._distance_dict = dict()
         self._max_distance = np.nan
-        # selection status
-        self._selected = []
 
     def available_window(self):
         if self.n_sta == 0:
@@ -101,7 +99,6 @@ class NetworkTimeSeries:
                 self._lon_range[0] = lon
             elif lon > self._lon_range[1]:
                 self._lon_range[1] = lon
-        self._selected.append(False)
 
     def lat_range(self):
         return self._lat_range
@@ -412,12 +409,6 @@ class NetworkTimeSeries:
         win = parse_time(win_offset)
         for ts in self._station_ts:
             ts.win_offset = win
-
-    def is_selected(self, sta_code):
-        return self._selected[self._code2index[sta_code]]
-
-    def set_selected(self, sta_code, selected):
-        self._selected[self._code2index[sta_code]] = selected
 
 
 def mw_crowel(pgd, r_hypo):
