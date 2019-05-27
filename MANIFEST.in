@@ -6,7 +6,6 @@ include requirements.txt
 # Include the data files, examples and docs
 include t_student_table
 include unit_tests *.py
-# include unit_test/data/VNEV.txt
 
 # Exclude other directories and files
 exclude inst_files.txt
