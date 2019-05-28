@@ -1,3 +1,4 @@
+from collections import Iterable
 from math import sqrt, isfinite
 import numpy as np
 from geoproj.proj import TransverseMercator
@@ -190,7 +191,10 @@ class NetworkTimeSeries:
         """
         if code is None:
             return self._ref_coords
-        return self._ref_coords[self._sta2index(code)]
+        elif isinstance(code, str):
+            return self._ref_coords[self._sta2index(code)]
+        else:
+            return tuple(self._ref_coords[self._sta2index(c)] for c in code)
 
     def dist_to_hypocenter(self, code=None):
         if code is None:
@@ -214,13 +218,20 @@ class NetworkTimeSeries:
 
     def ref_coord_vectors(self, stations=None):
         if stations is None:
-            return (np.array([x[0] for x in self._ref_coords]),
-                    np.array([x[1] for x in self._ref_coords]))
-        coord_vectors = [np.full(len(stations), np.nan) for _ in range(2)]
-        for k, code in enumerate(stations):
-            index = self._code2index[code]
-            coord_vectors[0][k], coord_vectors[1][k] = self._ref_coords[index]
-        return coord_vectors
+            n_sta = self.n_sta
+            stations = self._codes
+        else:
+            n_sta = len(stations)
+        lon = np.zeros(n_sta)
+        lat = np.zeros(n_sta)
+        if stations is None:
+            for k, x in enumerate(self._ref_coords):
+                lon[k], lat[k] = x
+        else:
+            for k, code in enumerate(stations):
+                index = self._code2index[code]
+                lon[k], lat[k] = self._ref_coords[index]
+        return (lon, lat), stations
 
     def station_codes(self):
         return self._codes
