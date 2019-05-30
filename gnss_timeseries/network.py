@@ -80,6 +80,11 @@ class NetworkTimeSeries:
         :param ref_coords: (longitude, latitude)
         :param name: station's name
         """
+        if ref_coords is None:
+            print('\n'*2)
+            print('  *** {:s}:  no ref coords.'.format(code))
+            print('\n'*2)
+            return
         self._code2index[code] = self.n_sta
         self.n_sta += 1
         self._codes.append(code)
